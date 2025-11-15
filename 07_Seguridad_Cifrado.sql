@@ -155,28 +155,129 @@ GO
 -------------------- ENCRIPTACION ---------------------
 -------------------------------------------------------
 
+IF NOT EXISTS(SELECT 1 FROM sys.symmetric_keys where name = 'DatosPersonas')
+	BEGIN
+		CREATE MASTER KEY ENCRYPTION BY PASSWORD ='Contrasenia135';
+	END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.certificates WHERE NAME = 'CertifacadoEncriptacion')
+	BEGIN
+		CREATE CERTIFICATE CertifacadoEncriptacion
+		WITH SUBJECT ='Certificado de datos sensibles'
+	END
+GO
+IF NOT EXISTS(SELECT 1 FROM sys.symmetric_keys where name = 'DatosPersonas')
+	BEGIN
+		CREATE SYMMETRIC KEY DatosPersonas
+		WITH ALGORITHM = AES_256
+		ENCRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	END
+GO
+
+
 ALTER TABLE Consorcio.Persona
 ADD DNI_encriptado VARBINARY(256),
 	EmailPersona_encriptado VARBINARY(256),
 	CVU_CBU_encriptado VARBINARY(256)
 GO
 
-DECLARE @Contraseña NVARCHAR(16) = 'Contrasenia135';
-
 UPDATE Consorcio.Persona
-SET DNI_encriptado = ENCRYPTBYPASSPHRASE(@Contraseña, CAST(dni AS CHAR(8)), 1, CAST(idPersona AS VARBINARY(255))),
-	Email_encriptado = ENCRYPTBYPASSPHRASE(@Contraseña, email),
-	CVU_CBU_encriptado = ENCRYPTBYPASSPHRASE(@Contraseña, CVU_CBU),
+SET DNI_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CAST(dni AS CHAR(8)), 1, CAST(idPersona AS VARBINARY(255))),
+	Email_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), email),
+	CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CVU_CBU),
+	telefono_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),telefono),
+	nombre_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),nombre),
+	apellido_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), apellido)
 GO
 
 ALTER TABLE Consorcio.Persona
 DROP COLUMN idPersona, dni, email
 GO
 
+ALTER TABLE Consorcio.CuentaBancaria DROP CONSTRAINT PK__CuentaBa__B9B1535ACA1DD052
+
+ALTER TABLE Consorcio.CuentaBancaria
+ADD CVU_CBU_encriptado VARBINARY(256),
+	nombreTitular_encriptado VARBINARY(256),
+	saldo_encriptado VARBINARY(256)
+
+UPDATE Consorcio.CuentaBancaria
+SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),CVU_CBU),
+	nombreTitular_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), nombreTitular),
+	saldo_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,saldo))
+GO
+
+
+ALTER TABLE Consorcio.CuentaBancaria
+DROP COLUMN nombreTitular,saldo,CVU_CBU
+GO
+
+
+
+OPEN SYMMETRIC KEY DatosPersonas
+DESCRIPTION BY CERTIFICATE CertifacadoEncriptacion
+/*
+-- Encriptando Persona
+ALTER TABLE Consorcio.Persona
+ADD DNI_encriptado VARBINARY(256),
+	EmailPersona_encriptado VARBINARY(256),
+	CVU_CBU_encriptado VARBINARY(256)
+GO
+
+DECLARE @Contrasena VARCHAR(16) = 'Contrasenia135';
+
+UPDATE Consorcio.Persona
+SET DNI_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CAST(dni AS CHAR(8)), 1, CAST(idPersona AS VARBINARY(255))),
+	Email_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), email),
+	CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CVU_CBU),
+GO
+
+ALTER TABLE Consorcio.Persona
+DROP COLUMN idPersona, dni, email
+GO
+
+-- Encriptando CuentaBancaria
+ALTER TABLE Consorcio.CuentaBancaria
+ADD CVU_CBU_encriptado VARBINARY(256),
+	nombreTitular_encriptado VARBINARY(256),
+	saldo_encriptado VARBINARY(256)
+
+UPDATE Consorcio.CuentaBancaria
+SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),CVU_CBU),
+	nombreTitular_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), nombreTitular),
+	saldo_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), saldo),
+GO
+
+
+ALTER TABLE Consorcio.CuentaBancaria
+DROP COLUMN nombreTitular,saldo,CVU_CBU
+GO
+
+
+-------------------------------------------------------
+----------------- DESENCRIPTACION ---------------------
+-------------------------------------------------------
+
+
+CREATE OR ALTER PROCEDURE Operaciones.CuentasDescifradas @contrasena VARCHAR
+AS
+SELECT
+    nombreTitular,
+    saldo,
+    CVU_CBU,
+    CONVERT(NVARCHAR(50), DECRYPTBYPASSPHRASE(@contrasena, nombreTitular_encriptado)) AS nombreTitular,
+    CONVERT(NVARCHAR(100), DECRYPTBYPASSPHRASE(@contrasena, saldo_encriptado)) AS saldo,
+    CONVERT(NVARCHAR(50), DECRYPTBYPASSPHRASE(@contrasena, CVU_CBU_encriptado)) AS CVU_CBU
+FROM Consorcio.CuentaBancaria;
+GO
+
 
 -- Vista para descifrar (solo lectura para roles autorizados)
-CREATE OR ALTER VIEW Operaciones.vw_PersonasDescifradas
+CREATE OR ALTER VIEW Operaciones.vwPersonasDescifradas 
 AS
+
+
 SELECT
     idPersona,
     nombre,
@@ -191,6 +292,7 @@ GO
 DENY SELECT ON Consorcio.Persona TO PUBLIC;
 GRANT SELECT ON Consorcio.vwPersonasDescifradas TO AdministrativosGenerales, Sistemas;
 GO
+
 
 
 
@@ -305,4 +407,4 @@ BEGIN
         ) AS XML_Reporte5;
 END
 GO
-*/
+*/*/
