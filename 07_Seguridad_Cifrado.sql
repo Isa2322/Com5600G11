@@ -75,9 +75,6 @@ GO
 ----------------- CREACIÓN DE USUARIO -----------------
 -------------------------------------------------------
 
-USE [Com5600G11]
-GO
-
 IF DATABASE_PRINCIPAL_ID('administrativoGeneral') IS NULL
 	CREATE USER administrativoGeneral FOR LOGIN administrativoGeneral WITH DEFAULT_SCHEMA = [Persona];
 GO
@@ -177,6 +174,10 @@ GO
 
 -----------------Persona----------------------------
 
+OPEN SYMMETRIC KEY DatosPersonas
+DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+GO
+
 ALTER TABLE Consorcio.Persona
 ADD DNI_encriptado VARBINARY(256),
 	EmailPersona_encriptado VARBINARY(256),
@@ -187,8 +188,8 @@ ADD DNI_encriptado VARBINARY(256),
 GO
 
 UPDATE Consorcio.Persona
-SET DNI_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CAST(dni AS CHAR(8)), 1, CAST(idPersona AS VARBINARY(255))),
-	Email_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), email),
+SET DNI_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), dni),
+	EmailPersona_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), email),
 	CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CVU_CBU),
 	telefono_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),telefono),
 	nombre_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),nombre),
@@ -210,12 +211,14 @@ ALTER TABLE Consorcio.CuentaBancaria DROP CONSTRAINT PK__CuentaBa__B9B1535ACA1DD
 GO
 
 ALTER TABLE Consorcio.CuentaBancaria
-ADD CVU_CBU_encriptado VARBINARY(256),
-	nombreTitular_encriptado VARBINARY(256),
-	saldo_encriptado VARBINARY(256)
+ADD CVU_CBU_encriptado VARBINARY(MAX),
+	CVU_CBU_Hash VARBINARY(32),
+	nombreTitular_encriptado VARBINARY(MAX),
+	saldo_encriptado VARBINARY(MAX)
 GO
 UPDATE Consorcio.CuentaBancaria
 SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),CVU_CBU),
+	CVU_CBU_Hash = HASHBYTES('SHA2_512',CVU_CBU),
 	nombreTitular_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), nombreTitular),
 	saldo_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,saldo))
 GO
@@ -225,6 +228,7 @@ DROP COLUMN nombreTitular,
 			saldo,
 			CVU_CBU
 GO
+
 
 -----------------DetalleExpensa----------------------------
 
@@ -264,14 +268,14 @@ GO
 -----------------Expensa----------------------------
 
 ALTER TABLE Negocio.Expensa
-ADD saldoAnterior_encriptado VARBINARY(256),
-	ingresosEnTermino_encriptado VARBINARY(256),
-	ingresosAdeudados_encriptado VARBINARY(256),
-	ingresosAdelantados_encriptado VARBINARY(256),
-	egresos_encriptado VARBINARY(256),
-	saldoCierre_encriptado VARBINARY(256),
-	fechaPeriodoAnio_encriptado VARBINARY(256),
-	fechaPeriodoMes_encriptado VARBINARY(256)
+ADD saldoAnterior_encriptado VARBINARY(MAX),
+	ingresosEnTermino_encriptado VARBINARY(MAX),
+	ingresosAdeudados_encriptado VARBINARY(MAX),
+	ingresosAdelantados_encriptado VARBINARY(MAX),
+	egresos_encriptado VARBINARY(MAX),
+	saldoCierre_encriptado VARBINARY(MAX),
+	fechaPeriodoAnio_encriptado VARBINARY(MAX),
+	fechaPeriodoMes_encriptado VARBINARY(MAX)
 GO
 
 UPDATE Negocio.Expensa
@@ -298,12 +302,12 @@ GO
 
 -----------------GastoOrdinario----------------------------
 ALTER TABLE Negocio.GastoOrdinario
-ADD nombreEmpresaoPersona_encriptado VARBINARY(256),
-	nroFactura_encriptado VARBINARY(256),
-	fechaEmision_encriptado VARBINARY(256),
-	importeTotal_encriptado VARBINARY(256),
-	detalle_encriptado VARBINARY(256),
-	tipoServicio_encriptado VARBINARY(256)
+ADD nombreEmpresaoPersona_encriptado VARBINARY(MAX),
+	nroFactura_encriptado VARBINARY(MAX),
+	fechaEmision_encriptado VARBINARY(MAX),
+	importeTotal_encriptado VARBINARY(MAX),
+	detalle_encriptado VARBINARY(MAX),
+	tipoServicio_encriptado VARBINARY(MAX)
 GO
 
 UPDATE Negocio.GastoOrdinario
@@ -326,14 +330,14 @@ GO
 
 -----------------GastoExtaordinario----------------------------
 ALTER TABLE Negocio.GastoExtraordinario
-ADD nombreEmpresaoPersona_encriptado VARBINARY(256),
-	nroFactura_encriptado VARBINARY(256),
-	fechaEmision_encriptado VARBINARY(256),
-	importeTotal_encriptado VARBINARY(256),
-	detalle_encriptado VARBINARY(256),
-	esPagoTotal_encriptado VARBINARY(256),
-	nroCuota_encriptado VARBINARY(256),
-	totalCuota_encriptado VARBINARY(256)
+ADD nombreEmpresaoPersona_encriptado VARBINARY(MAX),
+	nroFactura_encriptado VARBINARY(MAX),
+	fechaEmision_encriptado VARBINARY(MAX),
+	importeTotal_encriptado VARBINARY(MAX),
+	detalle_encriptado VARBINARY(MAX),
+	esPagoTotal_encriptado VARBINARY(MAX),
+	nroCuota_encriptado VARBINARY(MAX),
+	totalCuota_encriptado VARBINARY(MAX)
 GO
 
 UPDATE Negocio.GastoExtraordinario
@@ -360,7 +364,7 @@ GO
 
 -----------------PagoAplicado----------------------------
 ALTER TABLE Pago.PagoAplicado
-ADD importeAplicado_encriptado VARBINARY(256)
+ADD importeAplicado_encriptado VARBINARY(MAX)
 GO
 
 UPDATE Pago.PagoAplicado
@@ -370,6 +374,8 @@ GO
 ALTER TABLE Pago.PagoAplicado
 DROP COLUMN importeAplicado
 GO
+CLOSE SYMMETRIC KEY ClaveSimetrica;
+
 
 OPEN SYMMETRIC KEY DatosPersonas
 DESCRIPTION BY CERTIFICATE CertifacadoEncriptacion
