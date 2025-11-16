@@ -175,11 +175,15 @@ IF NOT EXISTS(SELECT 1 FROM sys.symmetric_keys where name = 'DatosPersonas')
 	END
 GO
 
+-----------------Persona----------------------------
 
 ALTER TABLE Consorcio.Persona
 ADD DNI_encriptado VARBINARY(256),
 	EmailPersona_encriptado VARBINARY(256),
-	CVU_CBU_encriptado VARBINARY(256)
+	CVU_CBU_encriptado VARBINARY(256),
+	telefono_encriptado VARBINARY(256),
+	nombre_encriptado VARBINARY(256),
+	apellido_encriptado VARBINARY(256)
 GO
 
 UPDATE Consorcio.Persona
@@ -192,28 +196,180 @@ SET DNI_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CAST(dni AS CHAR(8
 GO
 
 ALTER TABLE Consorcio.Persona
-DROP COLUMN idPersona, dni, email
+DROP COLUMN  dni, 
+			email,
+			CVU_CBU,
+			telefono,
+			apellido,
+			nombre
 GO
 
+-----------------CuentaBancaria----------------------------
+
 ALTER TABLE Consorcio.CuentaBancaria DROP CONSTRAINT PK__CuentaBa__B9B1535ACA1DD052
+GO
 
 ALTER TABLE Consorcio.CuentaBancaria
 ADD CVU_CBU_encriptado VARBINARY(256),
 	nombreTitular_encriptado VARBINARY(256),
 	saldo_encriptado VARBINARY(256)
-
+GO
 UPDATE Consorcio.CuentaBancaria
 SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),CVU_CBU),
 	nombreTitular_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), nombreTitular),
 	saldo_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,saldo))
 GO
 
-
 ALTER TABLE Consorcio.CuentaBancaria
-DROP COLUMN nombreTitular,saldo,CVU_CBU
+DROP COLUMN nombreTitular,
+			saldo,
+			CVU_CBU
 GO
 
+-----------------DetalleExpensa----------------------------
 
+ALTER TABLE Negocio.DetalleExpensa
+ADD prorrateoOrdinario_encriptado VARBINARY(256),
+	prorrateoExtaordinario_encriptado VARBINARY(256),
+	interesMora_encriptado VARBINARY(256),
+	totalaPagar_encriptado VARBINARY(256),
+	saldoAnteriorAbonado_encriptado VARBINARY(256),
+	pagosRecibidos_encriptado VARBINARY(256),
+	primerVencimiento_encriptado VARBINARY(256),
+	segundoVencimiento_encriptado VARBINARY(256)
+GO
+
+Update Negocio.DetalleExpensa
+SET prorrateoOrdinario_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,prorrateoOrdinario)),
+	prorrateoExtaordinario_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,prorrateoExtraordinario)),
+	interesMora_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,interesMora)),
+	totalaPagar_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,totalaPagar)),
+	saldoAnteriorAbonado_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,saldoAnteriorAbonado)),
+	pagosRecibidos_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,pagosRecibidos)),
+	primerVencimiento_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,primerVencimiento)),
+	segundoVencimiento_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,segundoVencimiento))
+GO
+
+ALTER TABLE Negocio.DetalleExpensa
+DROP COLUMN prorrateoOrdinario,
+			prorrateoExtraordinario,
+			ineteresMora,
+			totalaPagar,
+			saldoAnteriorAbonado,
+			pagosRecibidos,
+			primerVencimiento,
+			segundoVencimiento
+GO
+
+-----------------Expensa----------------------------
+
+ALTER TABLE Negocio.Expensa
+ADD saldoAnterior_encriptado VARBINARY(256),
+	ingresosEnTermino_encriptado VARBINARY(256),
+	ingresosAdeudados_encriptado VARBINARY(256),
+	ingresosAdelantados_encriptado VARBINARY(256),
+	egresos_encriptado VARBINARY(256),
+	saldoCierre_encriptado VARBINARY(256),
+	fechaPeriodoAnio_encriptado VARBINARY(256),
+	fechaPeriodoMes_encriptado VARBINARY(256)
+GO
+
+UPDATE Negocio.Expensa
+SET saldoAnterior_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,saldoAnterior)),
+	ingresosEnTermino_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,ingresosEnTermino)),
+	ingresosAdeudados_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,ingresosAdeudados)),
+	ingresosAdelantados_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,ingresosAdelantados)),
+	egresos_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,egresos)),
+	saldoCierre_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,saldoCierre)),
+	fechaPeriodoAnio_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,fechaPeriodoAnio)),
+	fechaPeriodoMes_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,fechaPeriodoMes))
+GO
+
+ALTER TABLE Negocio.Expensa
+DROP COLUMN saldoAnterior,
+			ingresosEnTermino,
+			ingresosAdeudados,
+			ingresosAdelantados,
+			egresos,
+			saldoCierre,
+			fechaPeriodoAnio,
+			fechaPeriodoMes
+GO
+
+-----------------GastoOrdinario----------------------------
+ALTER TABLE Negocio.GastoOrdinario
+ADD nombreEmpresaoPersona_encriptado VARBINARY(256),
+	nroFactura_encriptado VARBINARY(256),
+	fechaEmision_encriptado VARBINARY(256),
+	importeTotal_encriptado VARBINARY(256),
+	detalle_encriptado VARBINARY(256),
+	tipoServicio_encriptado VARBINARY(256)
+GO
+
+UPDATE Negocio.GastoOrdinario
+SET nombreEmpresaoPersona_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), nombreEmpresaoPersona),
+	nroFactura_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,nroFactura)),
+	fechaEmision_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,fechaEmision)),
+	importeTotal_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,importeTotal)),
+	detalle_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), detalle),
+	tipoServicio_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), tipoServicio)
+GO
+
+ALTER TABLE Negocio.GastoOrdinario
+DROP COLUMN nombreEmpresaoPersona,
+			nroFactura,
+			fechaEmision,
+			importeTotal,
+			detalle,
+			tipoServicio
+GO
+
+-----------------GastoExtaordinario----------------------------
+ALTER TABLE Negocio.GastoExtraordinario
+ADD nombreEmpresaoPersona_encriptado VARBINARY(256),
+	nroFactura_encriptado VARBINARY(256),
+	fechaEmision_encriptado VARBINARY(256),
+	importeTotal_encriptado VARBINARY(256),
+	detalle_encriptado VARBINARY(256),
+	esPagoTotal_encriptado VARBINARY(256),
+	nroCuota_encriptado VARBINARY(256),
+	totalCuota_encriptado VARBINARY(256)
+GO
+
+UPDATE Negocio.GastoExtraordinario
+SET nombreEmpresaoPersona_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), nombreEmpresaoPersona),
+	nroFactura_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,nroFactura)),
+	fechaEmision_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,fechaEmision)),
+	importeTotal_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,importeTotal)),
+	detalle_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), detalle),
+	esPagoTotal_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,esPagoTotal)),
+	nroCuota_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,nroCuota)),
+	totalCuota_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,totalCuota))
+GO 
+
+ALTER TABLE Negocio.GastoExtraordinario
+DROP COLUMN nombreEmpresaoPersona,
+			nroFactura,
+			fechaEmision,
+			importeTotal,
+			detalle,
+			esPagoTotal,
+			nroCuota,
+			totalCuota
+GO
+
+-----------------PagoAplicado----------------------------
+ALTER TABLE Pago.PagoAplicado
+ADD importeAplicado_encriptado VARBINARY(256)
+GO
+
+UPDATE Pago.PagoAplicado
+SET importeAplicado_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,importeAplicado))
+GO
+
+ALTER TABLE Pago.PagoAplicado
+DROP COLUMN importeAplicado
+GO
 
 OPEN SYMMETRIC KEY DatosPersonas
 DESCRIPTION BY CERTIFICATE CertifacadoEncriptacion
