@@ -146,7 +146,8 @@ ALTER ROLE Sistemas ADD MEMBER sistema;
 GO
 
 
-
+USE [Com5600G11]
+GO
 
 -------------------------------------------------------
 -------------------- ENCRIPTACION ---------------------
@@ -179,21 +180,33 @@ DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
 GO
 
 ALTER TABLE Consorcio.Persona
-ADD DNI_encriptado VARBINARY(256),
-	EmailPersona_encriptado VARBINARY(256),
-	CVU_CBU_encriptado VARBINARY(256),
-	telefono_encriptado VARBINARY(256),
-	nombre_encriptado VARBINARY(256),
-	apellido_encriptado VARBINARY(256)
+ADD DNI_encriptado VARBINARY(MAX),
+	DNI_hash VARBINARY(32),
+	EmailPersona_encriptado VARBINARY(MAX),
+	EmailPersona_hash VARBINARY(32),
+	CVU_CBU_encriptado VARBINARY(MAX),
+	CVU_CBU_hash VARBINARY(32),
+	telefono_encriptado VARBINARY(MAX),
+	telefono_hash VARBINARY(32),
+	nombre_encriptado VARBINARY(MAX),
+	nombre_hash VARBINARY(32),
+	apellido_encriptado VARBINARY(MAX),
+	apellido_hash VARBINARY(32)
 GO
 
 UPDATE Consorcio.Persona
 SET DNI_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), dni),
+	DNI_hash = HASHBYTES('SHA2_512',dni),
 	EmailPersona_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), email),
+	EmailPersona_hash = HASHBYTES('SHA2_512',email),
 	CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CVU_CBU),
+	CVU_CBU_hash = HASHBYTES('SHA2_512',CVU_CBU),
 	telefono_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),telefono),
+	telefono_hash = HASHBYTES('SHA2_512',telefono),
 	nombre_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),nombre),
-	apellido_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), apellido)
+	nombre_hash = HASHBYTES('SHA2_512',nombre),
+	apellido_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), apellido),
+	apellido_hash = HASHBYTES('SHA2_512',apellido)
 GO
 
 ALTER TABLE Consorcio.Persona
@@ -205,9 +218,16 @@ DROP COLUMN  dni,
 			nombre
 GO
 
+EXEC sp_rename 'Consorcio.Persona.DNI_encriptado','dni','COLUMN'
+EXEC sp_rename 'Consorcio.Persona.EmailPersona_encriptado','email','COLUMN'
+EXEC sp_rename 'Consorcio.Persona.CVU_CBU_encriptado','CVU_CBU','COLUMN'
+EXEC sp_rename 'Consorcio.Persona.telefono_encriptado','telefono','COLUMN'
+EXEC sp_rename 'Consorcio.Persona.nombre_encriptado','nombre','COLUMN'
+EXEC sp_rename 'Consorcio.Persona.apellido_encriptado','apellido','COLUMN'
 -----------------CuentaBancaria----------------------------
 
-ALTER TABLE Consorcio.CuentaBancaria DROP CONSTRAINT PK__CuentaBa__B9B1535ACA1DD052
+ALTER TABLE Consorcio.CuentaBancaria 
+DROP CONSTRAINT PK__CuentaBa__B9B1535ACA1DD052
 GO
 
 ALTER TABLE Consorcio.CuentaBancaria
@@ -229,18 +249,95 @@ DROP COLUMN nombreTitular,
 			CVU_CBU
 GO
 
+EXEC sp_rename 'Consorcio.CuentaBancaria.CVU_CBU_encriptado','CVU_CBU','COLUMN'
+EXEC sp_rename 'Consorcio.CuentaBancaria.nombreTitular_encriptado','nombreTitular','COLUMN'
+EXEC sp_rename 'Consorcio.CuentaBancaria.saldo_encriptado','saldo','COLUMN'
+
+-----------------Pago----------------------------
+ALTER TABLE Pago.Pago
+ADD cbuCuentaOrigen_encriptado VARBINARY(MAX),
+	cbuCuentaOrigen_hash VARBINARY(32),
+	fecha_encriptada VARBINARY(MAX),
+	fecha_hash VARBINARY(32),
+	importe_encriptado VARBINARY(MAX)
+GO
+
+UPDATE Pago.Pago
+SET cbuCuentaOrigen_encriptado ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,cbuCuentaOrigen)),
+	cbuCuentaOrigen_hash = HASHBYTES('SHA2_512',cbuCuentaOrigen),
+	fecha_encriptada ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,	fecha)),
+	fecha_hash = HASHBYTES('SHA2_512',fecha),
+	importe_encriptado ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,importe))
+GO
+
+ALTER TABLE Pago.Pago
+DROP COLUMN cbuCuentaOrigen,
+			fecha,
+			importe
+GO
+
+EXEC sp_rename 'Pago.Pago.cbuCuentaOrigen_encriptado','cbuCuentaOrigen','COLUMN'
+EXEC sp_rename 'Pago.Pago.fecha_encriptada','fecha','COLUMN'
+EXEC sp_rename 'Pago.Pago.importe_encriptado','importe','COLUMN'
+
+-----------------Consorcio----------------------------
+
+ALTER TABLE Consorcio.Consorcio
+ADD CVU_CBU_encriptado VARBINARY(MAX),
+	CVU_CBU_Hash VARBINARY(32),
+	direccion_encriptado VARBINARY(MAX)
+GO
+
+UPDATE Consorcio.Consorcio
+SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),CVU_CBU),
+	CVU_CBU_Hash = HASHBYTES('SHA2_512',CVU_CBU),
+	direccion_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),direccion)
+GO
+
+ALTER TABLE Consorcio.Consorcio
+DROP CONSTRAINT FK_CVU_CBU
+GO
+
+ALTER TABLE Consorcio.Consorcio
+DROP CVU_CBU
+GO
+
+EXEC sp_rename 'Consorcio.Consorcio.CVU_CBU_encriptado','CVU_CBU','COLUMN'
+EXEC sp_rename 'Consorcio.Consorcio.direccion_encriptado','direccion','COLUMN'
+
+-----------------UnidadFuncional----------------------------
+ALTER TABLE Consorcio.UnidadFuncional
+ADD CVU_CBU_encriptado VARBINARY(MAX),
+	CVU_CBU_Hash VARBINARY(32)
+GO
+
+UPDATE Consorcio.UnidadFuncional
+SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'),CVU_CBU),
+	CVU_CBU_Hash = HASHBYTES('SHA2_512',CVU_CBU)
+GO
+
+ALTER TABLE Consorcio.UnidadFuncional
+DROP CONSTRAINT FK_UF_CuentaPersona
+GO
+
+ALTER TABLE Consorcio.UnidadFuncional
+DROP CVU_CBU
+GO
+
+EXEC sp_rename 'Consorcio.UnidadFuncional.CVU_CBU_encriptado','CVU_CBU','COLUMN'
 
 -----------------DetalleExpensa----------------------------
 
 ALTER TABLE Negocio.DetalleExpensa
-ADD prorrateoOrdinario_encriptado VARBINARY(256),
-	prorrateoExtaordinario_encriptado VARBINARY(256),
-	interesMora_encriptado VARBINARY(256),
-	totalaPagar_encriptado VARBINARY(256),
-	saldoAnteriorAbonado_encriptado VARBINARY(256),
-	pagosRecibidos_encriptado VARBINARY(256),
-	primerVencimiento_encriptado VARBINARY(256),
-	segundoVencimiento_encriptado VARBINARY(256)
+ADD prorrateoOrdinario_encriptado VARBINARY(MAX),
+	prorrateoExtaordinario_encriptado VARBINARY(MAX),
+	interesMora_encriptado VARBINARY(MAX),
+	totalaPagar_encriptado VARBINARY(MAX),
+	saldoAnteriorAbonado_encriptado VARBINARY(MAX),
+	pagosRecibidos_encriptado VARBINARY(MAX),
+	primerVencimiento_encriptado VARBINARY(MAX),
+	primerVencimiento_hash VARBINARY(32),
+	segundoVencimiento_encriptado VARBINARY(MAX)
 GO
 
 Update Negocio.DetalleExpensa
@@ -251,6 +348,7 @@ SET prorrateoOrdinario_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CON
 	saldoAnteriorAbonado_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,saldoAnteriorAbonado)),
 	pagosRecibidos_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,pagosRecibidos)),
 	primerVencimiento_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,primerVencimiento)),
+	primerVencimiento_hash = HASHBYTES('SHA2_512',primerVencimiento),
 	segundoVencimiento_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,segundoVencimiento))
 GO
 
@@ -265,6 +363,15 @@ DROP COLUMN prorrateoOrdinario,
 			segundoVencimiento
 GO
 
+EXEC sp_rename 'Negocio.DetalleExpensa.prorrateoOrdinario_encriptado','prorrateoOrdinario','COLUMN'
+EXEC sp_rename 'Negocio.DetalleExpensa.prorrateoExtaordinario_encriptado','prorrateoExtraordinario','COLUMN'
+EXEC sp_rename 'Negocio.DetalleExpensa.interesMora_encriptado','interesMora','COLUMN'
+EXEC sp_rename 'Negocio.DetalleExpensa.totalaPagar_encriptado','totalaPagar','COLUMN'
+EXEC sp_rename 'Negocio.DetalleExpensa.saldoAnteriorAbonado_encriptado','saldoAnteriorAbonado','COLUMN'
+EXEC sp_rename 'Negocio.DetalleExpensa.pagosRecibidos_encriptado','segundoVencimiento','COLUMN'
+EXEC sp_rename 'Negocio.DetalleExpensa.primerVencimiento_encriptado','primerVencimiento','COLUMN'
+EXEC sp_rename 'Negocio.DetalleExpensa.segundoVencimiento_encriptado','pagosRecibidos','COLUMN'
+
 -----------------Expensa----------------------------
 
 ALTER TABLE Negocio.Expensa
@@ -275,7 +382,9 @@ ADD saldoAnterior_encriptado VARBINARY(MAX),
 	egresos_encriptado VARBINARY(MAX),
 	saldoCierre_encriptado VARBINARY(MAX),
 	fechaPeriodoAnio_encriptado VARBINARY(MAX),
-	fechaPeriodoMes_encriptado VARBINARY(MAX)
+	fechaPeriodoAnio_hash VARBINARY(MAX),
+	fechaPeriodoMes_encriptado VARBINARY(MAX),
+	fechaPeriodoMes_hash VARBINARY(MAX)
 GO
 
 UPDATE Negocio.Expensa
@@ -286,7 +395,9 @@ SET saldoAnterior_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT 
 	egresos_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,egresos)),
 	saldoCierre_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,saldoCierre)),
 	fechaPeriodoAnio_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,fechaPeriodoAnio)),
-	fechaPeriodoMes_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,fechaPeriodoMes))
+	fechaPeriodoAnio_hash = HASHBYTES('SHA2_512',fechaPeriodoAnio),
+	fechaPeriodoMes_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,fechaPeriodoMes)),
+	fechaPeriodoMes_hash = HASHBYTES('SHA2_512',fechaPeriodoMes)
 GO
 
 ALTER TABLE Negocio.Expensa
@@ -299,6 +410,16 @@ DROP COLUMN saldoAnterior,
 			fechaPeriodoAnio,
 			fechaPeriodoMes
 GO
+
+
+EXEC sp_rename 'Negocio.Expensa.saldoAnterior_encriptado','saldoAnterior','COLUMN'
+EXEC sp_rename 'Negocio.Expensa.ingresosEnTermino_encriptado','ingresosEnTermino','COLUMN'
+EXEC sp_rename 'Negocio.Expensa.ingresosAdeudados_encriptado','ingresosAdeudados','COLUMN'
+EXEC sp_rename 'Negocio.Expensa.ingresosAdelantados_encriptado','ingresosAdelantados','COLUMN'
+EXEC sp_rename 'Negocio.Expensa.egresos_encriptado','egresos','COLUMN'
+EXEC sp_rename 'Negocio.Expensa.saldoCierre_encriptado','saldoCierre','COLUMN'
+EXEC sp_rename 'Negocio.Expensa.fechaPeriodoAnio_encriptado','fechaPeriodoAnio','COLUMN'
+EXEC sp_rename 'Negocio.Expensa.fechaPeriodoMes_encriptado','fechaPeriodoMes','COLUMN'
 
 -----------------GastoOrdinario----------------------------
 ALTER TABLE Negocio.GastoOrdinario
@@ -328,6 +449,13 @@ DROP COLUMN nombreEmpresaoPersona,
 			tipoServicio
 GO
 
+EXEC sp_rename 'Negocio.GastoOrdinario.nombreEmpresaoPersona_encriptado','nombreEmpresaoPersona','COLUMN'
+EXEC sp_rename 'Negocio.GastoOrdinario.nroFactura_encriptado','nroFactura','COLUMN'
+EXEC sp_rename 'Negocio.GastoOrdinario.fechaEmision_encriptado','fechaEmision','COLUMN'
+EXEC sp_rename 'Negocio.GastoOrdinario.importeTotal_encriptado','importeTotal','COLUMN'
+EXEC sp_rename 'Negocio.GastoOrdinario.detalle_encriptado','detalle','COLUMN'
+EXEC sp_rename 'Negocio.GastoOrdinario.tipoServicio_encriptado','tipoServicio','COLUMN'
+
 -----------------GastoExtaordinario----------------------------
 ALTER TABLE Negocio.GastoExtraordinario
 ADD nombreEmpresaoPersona_encriptado VARBINARY(MAX),
@@ -337,6 +465,7 @@ ADD nombreEmpresaoPersona_encriptado VARBINARY(MAX),
 	detalle_encriptado VARBINARY(MAX),
 	esPagoTotal_encriptado VARBINARY(MAX),
 	nroCuota_encriptado VARBINARY(MAX),
+	nroCuota_hash VARBINARY(32),
 	totalCuota_encriptado VARBINARY(MAX)
 GO
 
@@ -348,6 +477,7 @@ SET nombreEmpresaoPersona_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), 
 	detalle_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), detalle),
 	esPagoTotal_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,esPagoTotal)),
 	nroCuota_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,nroCuota)),
+	nroCuota_hash = HASHBYTES('SHA2_512',nroCuota),
 	totalCuota_encriptado = ENCRYPTBYKEY(Key_GUID('ClaveSimetrica'), CONVERT (VARCHAR,totalCuota))
 GO 
 
@@ -361,6 +491,15 @@ DROP COLUMN nombreEmpresaoPersona,
 			nroCuota,
 			totalCuota
 GO
+
+EXEC sp_rename 'Negocio.GastoExtraordinario.nombreEmpresaoPersona_encriptado','nombreEmpresaoPersona','COLUMN'
+EXEC sp_rename 'Negocio.GastoExtraordinario.nroFactura_encriptado','nroFactura','COLUMN'
+EXEC sp_rename 'Negocio.GastoExtraordinario.fechaEmision_encriptado','fechaEmision','COLUMN'
+EXEC sp_rename 'Negocio.GastoExtraordinario.importeTotal_encriptado','importeTotal','COLUMN'
+EXEC sp_rename 'Negocio.GastoExtraordinario.detalle_encriptado','detalle','COLUMN'
+EXEC sp_rename 'Negocio.GastoExtraordinario.esPagoTotal_encriptado','esPagoTotal','COLUMN'
+EXEC sp_rename 'Negocio.GastoExtraordinario.nroCuota_encriptado','nroCuota','COLUMN'
+EXEC sp_rename 'Negocio.GastoExtraordinario.totalCuota_encriptado','totalCuota','COLUMN'
 
 -----------------PagoAplicado----------------------------
 ALTER TABLE Pago.PagoAplicado
