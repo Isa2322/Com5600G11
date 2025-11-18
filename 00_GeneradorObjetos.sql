@@ -148,9 +148,10 @@ GO
 BEGIN
 	CREATE TABLE Consorcio.CuentaBancaria
     (
-		CVU_CBU CHAR(22) PRIMARY KEY,
+		CVU_CBU CHAR(22),
 		nombreTitular VARCHAR(50),
-		saldo DECIMAL(10,2)
+		saldo DECIMAL(10,2),
+		CONSTRAINT PK_CVU_CBU PRIMARY KEY CLUSTERED (CVU_CBU)
 	)
 END
 GO
@@ -226,7 +227,8 @@ BEGIN
         id INT IDENTITY(1,1) NOT NULL,
         idFormaPago INT NOT NULL, 
         cbuCuentaOrigen VARCHAR(50) NOT NULL, 
-        fecha DATETIME2(0) NOT NULL DEFAULT GETDATE(),
+        fecha DATETIME2(0) NOT NULL
+		CONSTRAINT DF_fecha DEFAULT GETDATE(),
         importe DECIMAL(18, 2) NOT NULL, 
         CONSTRAINT PK_Pago PRIMARY KEY CLUSTERED (id),
         CONSTRAINT FK_Pago_FormaDePago FOREIGN KEY (idFormaPago) REFERENCES Pago.FormaDePago (idFormaPago)
