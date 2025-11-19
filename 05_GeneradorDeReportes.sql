@@ -308,12 +308,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    --Abro la key para poder usarla
 
-    OPEN SYMMETRIC KEY DatosPersonas
-        DECRYPTION BY CERTIFICATE CertifacadoEncriptacion;
-
-    
     -- Top N meses con mayores gastos
     WITH GastosPorMes AS (
         SELECT 
@@ -327,10 +322,7 @@ BEGIN
             SELECT 
                 ngo.idExpensa,
                 ngo.fechaEmision,
-                CAST(
-                    CONVERT(VARCHAR(50), DECRYPTBYKEY(ngo.importeTotal))
-                    AS DECIMAL(18,2)
-                ) AS importeTotal
+                ngo.importeTotal
             FROM Negocio.GastoOrdinario as ngo
             WHERE ngo.fechaEmision IS NOT NULL
             
@@ -339,14 +331,8 @@ BEGIN
             --EXTRAORDINARIOS
             SELECT 
                 ge.idExpensa,
-                CAST(
-                        CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.fechaEmision))
-                        AS DATETIME
-                    ),
-                CAST(
-                    CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.importeTotal))
-                    AS DECIMAL(18,2)
-                ) AS importeTotal
+                ge.fechaEmision,
+                ge.importeTotal
             FROM Negocio.GastoExtraordinario as ge
             WHERE ge.fechaEmision IS NOT NULL
         ) as e
@@ -377,29 +363,13 @@ BEGIN
         SELECT 
             exp.fechaPeriodoAnio AS Anio,
             exp.fechaPeriodoMes AS Mes,
-            --desencripto pagosRecibidos
-            SUM(
-                CAST(
-                    CONVERT(VARCHAR(50), DECRYPTBYKEY(de.pagosRecibidos)) --desencripto y dspues casteo
-                    AS DECIMAL(18,2)
-                )
-            ) AS TotalIngresos
+            SUM(de.pagosRecibidos) AS TotalIngresos
         FROM Negocio.DetalleExpensa AS de
         INNER JOIN Negocio.Expensa AS exp ON de.expensaId = exp.id
         WHERE
             de.primerVencimiento IS NOT NULL
-             --desencripto pagosRecibidos
-            AND CAST(
-                    CONVERT(VARCHAR(50), DECRYPTBYKEY(de.pagosRecibidos))
-                AS DECIMAL(18,2)
-            ) > 0
-            --desencripto primerVencimiento
-            AND (@Anio IS NULL OR YEAR(
-                    CAST(
-                        CONVERT(VARCHAR(50), DECRYPTBYKEY(de.primerVencimiento))
-                        AS DATETIME
-                    )
-                ) = @Anio)
+            AND de.pagosRecibidos > 0
+            AND (@Anio IS NULL OR YEAR(de.primerVencimiento) = @Anio)
             AND (@ConsorcioID IS NULL OR exp.consorcioId = @ConsorcioID)
         GROUP BY exp.fechaPeriodoAnio, exp.fechaPeriodoMes
     ),
@@ -435,7 +405,6 @@ BEGIN
     
     ORDER BY Tipo DESC, Monto DESC;
     
-CLOSE SYMMETRIC KEY DatosPersonas;
 
 END
 GO
