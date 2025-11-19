@@ -45,9 +45,9 @@ IF NOT EXISTS(SELECT 1 FROM sys.symmetric_keys where name = 'DatosPersonas')
 	END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.certificates WHERE NAME = 'CertifacadoEncriptacion')
+IF NOT EXISTS (SELECT 1 FROM sys.certificates WHERE NAME = 'CertificadoEncriptacion')
 	BEGIN
-		CREATE CERTIFICATE CertifacadoEncriptacion
+		CREATE CERTIFICATE CertificadoEncriptacion
 		WITH SUBJECT ='Certificado de datos sensibles'
 	END
 GO
@@ -55,7 +55,7 @@ IF NOT EXISTS(SELECT 1 FROM sys.symmetric_keys where name = 'DatosPersonas')
 	BEGIN
 		CREATE SYMMETRIC KEY DatosPersonas
 		WITH ALGORITHM = AES_256
-		ENCRYPTION BY CERTIFICATE CertifacadoEncriptacion
+		ENCRYPTION BY CERTIFICATE CertificadoEncriptacion
 	END
 GO
 
@@ -209,12 +209,11 @@ BEGIN
 END
 GO
 
-IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Persona') AND name= 'dni' 
-				AND system_type_id <>TYPE_ID('VARBINARY')) 
+IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Persona') AND name= 'dni' AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	--Se guardan los datos encrip´tados en las columnas nuevas
 	UPDATE Consorcio.Persona
@@ -269,7 +268,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Cuent
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Consorcio.CuentaBancaria
 	SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'),CVU_CBU),
@@ -312,7 +311,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Pago.Pago') AND
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Pago.Pago
 	SET cbuCuentaOrigen_encriptado= ENCRYPTBYKEY(Key_GUID('DatosPersonas'), CONVERT (VARCHAR,cbuCuentaOrigen)),
@@ -346,14 +345,14 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Conso
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Consorcio.Consorcio
 	SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'),CVU_CBU),
 		CVU_CBU_Hash = HASHBYTES('SHA2_512',CVU_CBU),
 		direccion_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'),direccion)
 
-	ALTER TABLE Consorcio.Consorcio
+	ALTER TABLE Cosorcio.Cosorcio
 	DROP COLUMN CVU_CBU,
 				direccion
 
@@ -378,7 +377,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Unida
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Consorcio.UnidadFuncional
 	SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'),CVU_CBU),
@@ -415,7 +414,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.Detalle
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	Update Negocio.DetalleExpensa
 	SET prorrateoOrdinario_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), CONVERT (VARCHAR,prorrateoOrdinario)),
@@ -470,7 +469,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.Expensa
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 UPDATE Negocio.Expensa
 SET saldoAnterior_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), CONVERT (VARCHAR,saldoAnterior)),
@@ -515,7 +514,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.GastoOr
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Negocio.GastoOrdinario
 	SET nombreEmpresaoPersona_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), nombreEmpresaoPersona),
@@ -555,7 +554,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.GastoEx
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 UPDATE Negocio.GastoExtraordinario
 SET nombreEmpresaoPersona_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), nombreEmpresaoPersona),
@@ -571,7 +570,8 @@ DROP COLUMN nombreEmpresaoPersona,
 			importeTotal,
 			detalle,
 			esPagoTotal,
-			totalCuota
+			totalCuota;
+
 
 EXEC sp_rename 'Negocio.GastoExtraordinario.nombreEmpresaoPersona_encriptado','nombreEmpresaoPersona','COLUMN'
 EXEC sp_rename 'Negocio.GastoExtraordinario.fechaEmision_encriptado','fechaEmision','COLUMN'
@@ -598,7 +598,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Pago.PagoAplica
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Pago.PagoAplicado
 	SET importeAplicado_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), CONVERT (VARCHAR,importeAplicado))
@@ -629,7 +629,7 @@ GO
 IF OBJECT_ID('Consorcio.PK_CVU_CBU','PK') IS NULL
 BEGIN
 
-	ALTER TABLE Consorcio.CuentaBancaria 
+	ALTER TABLE Consorcio.CuentaBancaria
 	ADD CONSTRAINT PK_CVU_CBU PRIMARY KEY CLUSTERED(CVU_CBU_Hash)
 END
 GO
@@ -789,7 +789,7 @@ BEGIN
     */
 	--Abro la clave Simetrica
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion;
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion;
 
     WITH AplicadoDes AS(
 		SELECT idPago,
