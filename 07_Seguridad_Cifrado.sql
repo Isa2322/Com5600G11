@@ -31,7 +31,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Perso
 BEGIN
 	RAISERROR('Los datos ya estan encriptados',16,1)
 END
-
+GO
 -------------------------------------------------------
 -------------------- ENCRIPTACION ---------------------
 -------------------------------------------------------
@@ -183,6 +183,15 @@ BEGIN
 	DROP INDEX IX_PagoAplicado_Pago ON Pago.PagoAplicado
 END
 GO
+
+IF EXISTS (SELECT 1 FROM sys.indexes 
+                   WHERE name = 'IX_GastoExt_Expensa_Cuota'
+                     AND object_id = OBJECT_ID('Negocio.GastoExtraordinario'))
+    BEGIN
+		DROP INDEX IX_GastoExt_Expensa_Cuota ON Negocio.GastoExtraordinario
+    END
+GO
+
 --------------------------------------------------------------------------------------------------------
 --------------------------Modificacion de cada tabla asociada a datos sencibles-------------------------
 --------------------------------------------------------------------------------------------------------
@@ -760,6 +769,19 @@ BEGIN
     CREATE NONCLUSTERED INDEX IX_PagoAplicado_Pago
         ON Pago.PagoAplicado (idPago)
         INCLUDE (idDetalleExpensa, importeAplicado);
+END
+GO
+
+IF OBJECT_ID('Negocio.GastoExtraordinario','U') IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM sys.indexes 
+                   WHERE name = 'IX_GastoExt_Expensa_Cuota'
+                     AND object_id = OBJECT_ID('Negocio.GastoExtraordinario'))
+    BEGIN
+        CREATE NONCLUSTERED INDEX IX_GastoExt_Expensa_Cuota
+            ON Negocio.GastoExtraordinario (idExpensa, nroCuota)
+            INCLUDE (importeTotal, esPagoTotal, fechaEmision, nombreEmpresaoPersona, detalle, totalCuota);
+    END
 END
 GO
 
