@@ -788,14 +788,8 @@ BEGIN
        Tomamos solo los pagos del año solicitado (@anio).
     */
 	--Abro la clave Simetrica
-BEGIN TRY 
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion;
-END TRY
-
-BEGIN CATCH
-	RAISERROR('No se encontro credenciales para desencriptar',16,1)
-END CATCH
 
     WITH AplicadoDes AS(
 		SELECT idPago,
