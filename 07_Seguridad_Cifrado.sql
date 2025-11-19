@@ -429,9 +429,9 @@ BEGIN
 	EXEC sp_rename 'Negocio.DetalleExpensa.interesMora_encriptado','interesMora','COLUMN'
 	EXEC sp_rename 'Negocio.DetalleExpensa.totalaPagar_encriptado','totalaPagar','COLUMN'
 	EXEC sp_rename 'Negocio.DetalleExpensa.saldoAnteriorAbonado_encriptado','saldoAnteriorAbonado','COLUMN'
-	EXEC sp_rename 'Negocio.DetalleExpensa.pagosRecibidos_encriptado','segundoVencimiento','COLUMN'
+	EXEC sp_rename 'Negocio.DetalleExpensa.pagosRecibidos_encriptado','pagosRecibidos','COLUMN'
 	EXEC sp_rename 'Negocio.DetalleExpensa.primerVencimiento_encriptado','primerVencimiento','COLUMN'
-	EXEC sp_rename 'Negocio.DetalleExpensa.segundoVencimiento_encriptado','pagosRecibidos','COLUMN'
+	EXEC sp_rename 'Negocio.DetalleExpensa.segundoVencimiento_encriptado','segundoVencimiento','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
 END
@@ -535,7 +535,7 @@ ADD nombreEmpresaoPersona_encriptado VARBINARY(MAX),
 END
 GO
 
-IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('GastoExtraordinario') AND name= 'nombreEmpresaoPersona' 
+IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.GastoExtraordinario') AND name= 'nombreEmpresaoPersona' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas

@@ -34,10 +34,10 @@ BEGIN
 END
 GO
 
-IF SUSER_ID('sistemas') IS NULL
+IF SUSER_ID('sistema') IS NULL
 BEGIN
-    CREATE LOGIN sistemas
-		WITH PASSWORD = 'sistemas#4321',
+    CREATE LOGIN sistema
+		WITH PASSWORD = 'sistema#4321',
 		CHECK_POLICY = ON,
 		DEFAULT_DATABASE = [Com5600G11];
 END
@@ -60,8 +60,8 @@ IF DATABASE_PRINCIPAL_ID('administrativoOperativo') IS NULL
 	CREATE USER administrativoOperativo FOR LOGIN administrativoOperativo WITH DEFAULT_SCHEMA = [Negocio];
 GO
 
-IF DATABASE_PRINCIPAL_ID('sistemas') IS NULL
-	CREATE USER sistemas FOR LOGIN sistemas WITH DEFAULT_SCHEMA = [Persona];
+IF DATABASE_PRINCIPAL_ID('sistema') IS NULL
+	CREATE USER sistema FOR LOGIN sistema WITH DEFAULT_SCHEMA = [Persona];
 GO
 
 
@@ -80,6 +80,11 @@ GO
 IF DATABASE_PRINCIPAL_ID('AdministrativosOperativos') IS NULL
 	CREATE ROLE AdministrativosOperativos AUTHORIZATION dbo;
 GO
+
+IF DATABASE_PRINCIPAL_ID('Sistemas') IS NULL
+	CREATE ROLE Sistemas AUTHORIZATION dbo;
+GO
+
 
 
 -------------------------------------------------------
@@ -102,7 +107,7 @@ GRANT SELECT, UPDATE ON SCHEMA::Consorcio TO administrativoOperativo;
 GRANT EXECUTE ON SCHEMA::Reporte TO administrativoOperativo;
 
 -- Sistemas: sólo reportes (lectura y ejecucion)
-GRANT EXECUTE ON SCHEMA::Reporte TO sistemas;
+GRANT EXECUTE ON SCHEMA::Reporte TO sistema;
 GO
 
 -------------------------------------------------------

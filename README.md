@@ -7,4 +7,4 @@ Miembros
 * Puma, Florencia -42945609
 * Fontanet Caniza, Camila - arcticami - 44892126
 * Altamiranda, Isaias Taiel - Isa2322
-* Pastori, Ximena -
+* Pastori, Ximena - pastoriximena - 42300128
