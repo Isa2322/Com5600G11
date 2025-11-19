@@ -23,10 +23,19 @@
 
 USE [Com5600G11]
 GO
+-------------------------------------------------------------------------------------------------------------
+------------------ Esta hoja esta pensada para que se ejecute el script completo una unica vez---------------
+-------------------------------------------------------------------------------------------------------------
+
+IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Persona') AND name= 'DNI_hash') 
+BEGIN
+	RAISERROR('Los datos ya estan encriptados',16,1)
+END
 
 -------------------------------------------------------
 -------------------- ENCRIPTACION ---------------------
 -------------------------------------------------------
+
 
 -------------------------------Creacion del certificado y contrasena-----------------------------------------
 
@@ -50,7 +59,7 @@ IF NOT EXISTS(SELECT 1 FROM sys.symmetric_keys where name = 'DatosPersonas')
 	END
 GO
 
------------------------------Borrado de keys e indices---------------------------------------------------
+-----------------------------Borrado de constaints e indices con conflicto-----------------------------------
 IF OBJECT_ID('Consorcio.UnidadFuncional','F') IS NOT NULL
 BEGIN
 	ALTER TABLE Consorcio.UnidadFuncional
@@ -174,9 +183,14 @@ BEGIN
 	DROP INDEX IX_PagoAplicado_Pago ON Pago.PagoAplicado
 END
 GO
+--------------------------------------------------------------------------------------------------------
+--------------------------Modificacion de cada tabla asociada a datos sencibles-------------------------
+--------------------------------------------------------------------------------------------------------
 
--------------------------------------------Persona-------------------------------------------------------
 
+-------------------------------------------Persona------------------------------------------------------
+
+--Se crean nuevas columnas para no pisar los datos en caso de fallo
 IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Persona') AND name= 'DNI_encriptado')
 BEGIN
 	ALTER TABLE Consorcio.Persona
@@ -195,7 +209,6 @@ BEGIN
 END
 GO
 
-
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Persona') AND name= 'dni' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
@@ -203,7 +216,7 @@ BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
 
-
+	--Se guardan los datos encrip´tados en las columnas nuevas
 	UPDATE Consorcio.Persona
 	SET DNI_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), dni),
 		DNI_hash = HASHBYTES('SHA2_512',dni),
@@ -218,6 +231,7 @@ BEGIN
 		apellido_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), apellido),
 		apellido_hash = HASHBYTES('SHA2_512',apellido)
 
+	--Se dropean las columnas no cifradas
 	ALTER TABLE Consorcio.Persona
 	DROP COLUMN  dni, 
 				email,
@@ -225,7 +239,8 @@ BEGIN
 				telefono,
 				apellido,
 				nombre	
-				
+			
+	--Se renombran las columnas cifradas para no perder consistencia 
 	EXEC sp_rename 'Consorcio.Persona.DNI_encriptado','dni','COLUMN'
 	EXEC sp_rename 'Consorcio.Persona.EmailPersona_encriptado','email','COLUMN'
 	EXEC sp_rename 'Consorcio.Persona.CVU_CBU_encriptado','CVU_CBU','COLUMN'
@@ -275,6 +290,7 @@ BEGIN
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
 
+	--Modificacion para usar a CVU_CBU_Hash como PK
 	ALTER TABLE Consorcio.CuentaBancaria
 	ALTER COLUMN CVU_CBU_Hash VARBINARY(64)NOT NULL
 END
@@ -597,9 +613,8 @@ BEGIN
 	CLOSE SYMMETRIC KEY DatosPersonas;
 END
 GO
+------------------------Modificacion de indices y constraints----------------------------------------------
 
-
-------------------------Modificacion de indices----------------------------------------
 IF NOT EXISTS (SELECT 1 FROM sys.key_constraints
     WHERE parent_object_id = OBJECT_ID('Consorcio.Persona')
       AND type = 'UQ'
@@ -659,8 +674,6 @@ BEGIN
             INCLUDE (dni, nombre, apellido, email, telefono);
 END
 GO
-
-
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('Pago.Pago') 
 				AND name = 'IX_Pago_CBU')
@@ -748,4 +761,113 @@ BEGIN
         ON Pago.PagoAplicado (idPago)
         INCLUDE (idDetalleExpensa, importeAplicado);
 END
+GO
+
+-------------------------------------------------------------------------------------------------------------
+-------------------------------------Modificacion de sp de Reportes------------------------------------------
+-------------------------------------------------------------------------------------------------------------
+/*
+    REPORTE 2:
+    Presente el total de recaudación por mes y departamento en formato de tabla cruzada.  
+
+*/
+IF OBJECT_ID('Reporte.sp_Reporte2_RecaudacionMesDepto', 'P') IS NOT NULL
+    DROP PROCEDURE Reporte.sp_Reporte2_RecaudacionMesDepto
+GO
+
+CREATE OR ALTER PROCEDURE Reporte.sp_Reporte2_RecaudacionMesDepto
+    @idConsorcio INT,   
+    @anio INT,    
+    @incluirSinPagos BIT = 0 
+AS
+BEGIN
+    SET NOCOUNT ON;
+    /* 
+       Base: pagos aplicados a detalles de expensa.
+       Camino: PagoAplicado -> Pago(fecha) -> DetalleExpensa -> UF(departamento) -> Consorcio.
+       Tomamos solo los pagos del año solicitado (@anio).
+    */
+	--Abro la clave Simetrica
+	OPEN SYMMETRIC KEY DatosPersonas
+	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion;
+
+    WITH AplicadoDes AS(
+		SELECT idPago,
+		idDetalleExpensa,
+		--desencripto importeAplicado ya que es el valor que necesito para los calculos
+		CONVERT(decimal(18,2),CONVERT(VARCHAR,DECRYPTBYKEY(importeAplicado)))AS importeAplicado
+	FROM Pago.PagoAplicado
+	),
+	PagoDes AS(
+	
+	SELECT id,
+	idFormaPago,
+	fecha,
+	cbuCuentaOrigen_hash,
+	--desencripto importe
+	CONVERT(decimal(18,2),CONVERT(VARCHAR,DECRYPTBYKEY(importe)))AS importe
+	from Pago.Pago
+	),
+	Recaudacion AS
+    (
+        SELECT 
+            uf.departamento,
+            MONTH(p.fecha) AS mes,
+            SUM(pa.importeAplicado) AS importe
+        FROM AplicadoDes AS pa
+        INNER JOIN PagoDes           AS p  ON p.id = pa.idPago
+        INNER JOIN Negocio.DetalleExpensa AS de ON de.id = pa.idDetalleExpensa
+        INNER JOIN Consorcio.UnidadFuncional AS uf ON uf.id = de.idUnidadFuncional
+        INNER JOIN Consorcio.Consorcio       AS c  ON c.id = uf.consorcioId
+        WHERE c.id = @idConsorcio
+          AND YEAR(p.fecha) = @anio
+        GROUP BY uf.departamento, MONTH(p.fecha)
+    ),
+    -- Si se pide incluir UFs sin pagos, generamos todas las combinaciones depto x mes con 0
+    Base AS
+    (
+		SELECT 
+			uf.departamento,
+			r.mes,
+			COALESCE(r.importe,0) AS importe
+			FROM Consorcio.UnidadFuncional uf
+			LEFT JOIN Recaudacion r ON r.departamento =uf.departamento
+			WHERE uf.consorcioId=@idConsorcio
+			AND(
+			@incluirSinPagos=1 OR 
+			uf.departamento IN (SELECT DISTINCT departamento FROM Recaudacion )
+			)
+	)
+	SELECT departamento,
+		ISNULL([1],0) AS Ene,
+		ISNULL([2],0) AS Feb,
+		ISNULL([3],0) AS Mar,
+		ISNULL([4],0) AS Abr,
+		ISNULL([5],0) AS May,
+		ISNULL([6],0) AS Jun,
+		ISNULL([7],0) AS Jul,
+		ISNULL([8],0) AS Ago,
+		ISNULL([9],0) AS Sep,
+		ISNULL([10],0) AS Oct,
+		ISNULL([11],0) AS Nov,
+		ISNULL([12],0) AS Dic,
+		ISNULL([1],0)+ISNULL([2],0)+ISNULL([3],0)+ISNULL([4],0)+
+		ISNULL([5],0)+ISNULL([6],0)+ISNULL([7],0)+ISNULL([8],0)+
+		ISNULL([9],0)+ISNULL([10],0)+ISNULL([11],0)+ISNULL([12],0) AS Total
+	FROM(
+		SELECT departamento,mes,importe
+		FROM Base
+		)AS a
+		PIVOT(sum(importe) FOR mes IN 
+		([1],[2],[3],[4],[5],[6],
+		[7],[8],[9],[10],[11],[12])
+		) AS p
+    ORDER BY departamento;
+
+CLOSE SYMMETRIC KEY DatosPersonas
+END
+GO
+
+IF OBJECT_ID('Reporte.sp_Reporte2_RecaudacionMesDepto', 'P') IS NOT NULL
+    PRINT 'SP Para el reporte 2: Reporte.sp_Reporte2_RecaudacionMesDepto creado con exito'
 GO
