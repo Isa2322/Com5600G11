@@ -1017,6 +1017,8 @@ IF OBJECT_ID('Reporte.sp_Reporte2_RecaudacionMesDepto', 'P') IS NOT NULL
     PRINT 'SP Para el reporte 2: Reporte.sp_Reporte2_RecaudacionMesDepto creado con exito'
 GO
 
+
+--=========================================================================================================
 /*
     REPORTE 3:
     Presente un cuadro cruzado con la recaudación total desagregada según su procedencia (ordinario, extraordinario, etc.) según el periodo.
@@ -1105,6 +1107,166 @@ IF OBJECT_ID('Reporte.sp_Reporte3_RecaudacionPorProcedencia', 'P') IS NOT NULL
     PRINT 'SP Para el reporte 3: Reporte.sp_Reporte3_RecaudacionPorProcedencia creado con exito'
 GO
 
+
+--=========================================================================================================
+/*
+    REPORTE 4:
+    Obtenga los 5 (cinco) meses de mayores gastos y los 5 (cinco) de mayores ingresos.  
+*/
+
+
+
+IF OBJECT_ID('Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos', 'P') IS NOT NULL
+    DROP PROCEDURE Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos
+GO
+
+CREATE PROCEDURE Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos
+    @TopN INT = 5,
+    @Anio INT = NULL,
+    @ConsorcioID INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    --Abro la key para poder usarla
+
+    OPEN SYMMETRIC KEY DatosPersonas
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion;
+
+    
+    -- Top N meses con mayores gastos
+    WITH GastosPorMes AS (
+        SELECT 
+            YEAR(e.fechaEmision) AS Anio,
+            MONTH(e.fechaEmision) AS Mes,
+            SUM(e.importeTotal) AS TotalGastos
+        FROM (
+            -- Junto los gastos ordinarios y extraordinarios, capaz que hay una forma mas prolija
+            -- Lo dejo asi por ahora pq anda
+            --ORDINARIOS
+            SELECT 
+                ngo.idExpensa,
+                ngo.fechaEmision,
+                CAST(
+                    CONVERT(VARCHAR(50), DECRYPTBYKEY(ngo.importeTotal))
+                    AS DECIMAL(18,2)
+                ) AS importeTotal
+            FROM Negocio.GastoOrdinario as ngo
+            WHERE ngo.fechaEmision IS NOT NULL
+            
+            UNION ALL
+            
+            --EXTRAORDINARIOS
+            SELECT 
+                ge.idExpensa,
+                CAST(
+                        CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.fechaEmision))
+                        AS DATETIME
+                    ),
+                CAST(
+                    CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.importeTotal))
+                    AS DECIMAL(18,2)
+                ) AS importeTotal
+            FROM Negocio.GastoExtraordinario as ge
+            WHERE ge.fechaEmision IS NOT NULL
+        ) as e
+
+        INNER JOIN Negocio.Expensa AS exp ON e.idExpensa = exp.id
+        WHERE 
+            e.fechaEmision IS NOT NULL
+            -- Filtros agragados
+            AND (@Anio IS NULL OR YEAR(e.fechaEmision) = @Anio)
+            AND (@ConsorcioID IS NULL OR exp.consorcioId = @ConsorcioID)
+
+        GROUP BY YEAR(e.fechaEmision), MONTH(e.fechaEmision)
+    ),
+    TopNGastos AS (
+        SELECT TOP (@TopN)
+            Anio,
+            Mes,
+            DATENAME(MONTH, DATEFROMPARTS(Anio, Mes, 1)) AS NombreMes,
+            TotalGastos,
+            'Gasto' AS Tipo
+        FROM GastosPorMes
+        ORDER BY TotalGastos DESC
+    ),
+    
+    -- Top N meses con mayores ingresos
+    -- Tomo los de detalle expensa en vez de los de expensa pq ahi estan los pagos que si se recibieron (creo)
+    IngresosPorMes AS (
+        SELECT 
+            exp.fechaPeriodoAnio AS Anio,
+            exp.fechaPeriodoMes AS Mes,
+            --desencripto pagosRecibidos
+            SUM(
+                CAST(
+                    CONVERT(VARCHAR(50), DECRYPTBYKEY(de.pagosRecibidos)) --desencripto y dspues casteo
+                    AS DECIMAL(18,2)
+                )
+            ) AS TotalIngresos
+        FROM Negocio.DetalleExpensa AS de
+        INNER JOIN Negocio.Expensa AS exp ON de.expensaId = exp.id
+        WHERE
+            de.primerVencimiento IS NOT NULL
+             --desencripto pagosRecibidos
+            AND CAST(
+                    CONVERT(VARCHAR(50), DECRYPTBYKEY(de.pagosRecibidos))
+                AS DECIMAL(18,2)
+            ) > 0
+            --desencripto primerVencimiento
+            AND (@Anio IS NULL OR YEAR(
+                    CAST(
+                        CONVERT(VARCHAR(50), DECRYPTBYKEY(de.primerVencimiento))
+                        AS DATETIME
+                    )
+                ) = @Anio)
+            AND (@ConsorcioID IS NULL OR exp.consorcioId = @ConsorcioID)
+        GROUP BY exp.fechaPeriodoAnio, exp.fechaPeriodoMes
+    ),
+    TopNIngresos AS (
+        SELECT TOP (@TopN)
+            Anio,
+            Mes,
+            DATENAME(MONTH, DATEFROMPARTS(Anio, Mes, 1)) AS NombreMes,
+            TotalIngresos AS Monto,
+            'Ingreso' AS Tipo
+        FROM IngresosPorMes
+        ORDER BY TotalIngresos DESC
+    )
+    
+    -- Resultados combinados
+    SELECT 
+        Tipo,
+        Anio,
+        Mes,
+        NombreMes,
+        TotalGastos AS Monto
+    FROM TopNGastos
+    
+    UNION ALL
+    
+    SELECT 
+        Tipo,
+        Anio,
+        Mes,
+        NombreMes,
+        Monto
+    FROM TopNIngresos
+    
+    ORDER BY Tipo DESC, Monto DESC;
+    
+CLOSE SYMMETRIC KEY DatosPersonas;
+
+END
+GO
+
+IF OBJECT_ID('Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos', 'P') IS NOT NULL
+    PRINT 'SP Para el reporte 4: Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos creado con exito'
+
+
+GO
+
+--=========================================================================================================
 
 /*
     REPORTE 5:
