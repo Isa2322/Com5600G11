@@ -218,9 +218,12 @@ BEGIN
 END
 GO
 
+BEGIN TRY
+BEGIN TRAN
+
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Persona') AND name= 'dni' AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
-
+	PRINT 'Cifrando datos de Consorcio.Persona...'
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
@@ -257,8 +260,49 @@ BEGIN
 	EXEC sp_rename 'Consorcio.Persona.apellido_encriptado','apellido','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
+	PRINT 'Consorcio.Persona cifrado correctamente'
 END
-GO
+
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH ---En caso de fallo hago rollback y dropeo las columnas de datos cifrados y hash , si se crearon
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Consorcio.Persona'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Consorcio.Persona')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Consorcio.Persona
+			DROP COLUMN DNI_encriptado,
+						EmailPersona_encriptado,
+						CVU_CBU_encriptado,
+						telefono_encriptado,
+						nombre_encriptado,
+						apellido_encriptado;
+		END
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Consorcio.Persona')
+			AND name LIKE '%hash'
+		)
+		BEGIN
+			ALTER TABLE Consorcio.Persona
+			DROP COLUMN DNI_hash,
+						EmailPersona_hash,
+						CVU_CBU_hash,
+						telefono_hash,
+						nombre_hash,
+						apellido_hash;
+		END
+	END CATCH;
+	GO
 ----------------------------------------CuentaBancaria----------------------------------------------------------
 
 IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.CuentaBancaria') AND name= 'CVU_CBU_encriptado')
@@ -272,10 +316,13 @@ BEGIN
 END
 GO
 
+BEGIN TRY
+BEGIN TRAN
+
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.CuentaBancaria') AND name= 'CVU_CBU' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
-
+	PRINT 'Cifrando datos de Consorcio.CuentaBancaria...'
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
@@ -301,8 +348,41 @@ BEGIN
 	--Modificacion para usar a CVU_CBU_Hash como PK
 	ALTER TABLE Consorcio.CuentaBancaria
 	ALTER COLUMN CVU_CBU_Hash VARBINARY(64)NOT NULL
+
+	PRINT 'Consorcio.CuentaBancaria Cifrado correctamente'
 END
-GO
+
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH 
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Consorcio.CuentaBancaria'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Consorcio.CuentaBancaria')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Consorcio.CuentaBancaria
+			DROP COLUMN	CVU_CBU_encriptado,
+						nombreTitular_encriptado,
+						saldo_encriptado
+		END
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Consorcio.CuentaBancaria')
+			AND name LIKE '%hash'
+		)
+		BEGIN
+			ALTER TABLE Consorcio.CuentaBancaria
+			DROP COLUMN CVU_CBU_hash
+		END
+	END CATCH;
+	GO
 ----------------------------------------------------Pago--------------------------------------------------
 
 IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Pago.Pago') AND name= 'cbuCuentaOrigen_encriptado')
@@ -315,10 +395,13 @@ BEGIN
 END
 GO
 
+BEGIN TRY
+BEGIN TRAN
+
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Pago.Pago') AND name= 'cbuCuentaOrigen' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
-
+	PRINT 'Cifrando datos de Pago.Pago...'
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
@@ -336,8 +419,39 @@ BEGIN
 	EXEC sp_rename 'Pago.Pago.importe_encriptado','importe','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
+	PRINT 'Pago.Pago Cifrado correctamente'
 END
-GO
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH 
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Pago.Pago'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Pago.Pago')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Pago.Pago
+			DROP COLUMN	cbuCuentaOrigen_encriptado,
+						importe_encriptado
+		END
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Pago.Pago')
+			AND name LIKE '%hash'
+		)
+		BEGIN
+			ALTER TABLE Pago.Pago
+			DROP COLUMN cbuCuentaOrigen_hash
+		END
+	END CATCH;
+	GO
 ---------------------------------------------Consorcio---------------------------------------------
 IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Consorcio') 
 				AND name= 'CVU_CBU_encriptado')
@@ -349,10 +463,13 @@ BEGIN
 END
 GO
 
+BEGIN TRY
+BEGIN TRAN
+
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Consorcio') AND name= 'CVU_CBU' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
-
+	PRINT 'Cifrando datos de Consorcio.Consorcio'
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
@@ -369,8 +486,39 @@ BEGIN
 	EXEC sp_rename 'Consorcio.Consorcio.direccion_encriptado','direccion','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
+	PRINT 'Consorcio.Consorcio Cifrado correctamente'
 END
-GO
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH 
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Consorcio.Consorcio'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Consorcio.Consorcio')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Consorcio.Consorcio
+			DROP COLUMN	CVU_CBU_encriptado,
+						direccion_encriptado
+		END
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Consorcio.Consorcio')
+			AND name LIKE '%hash'
+		)
+		BEGIN
+			ALTER TABLE Consorcio.Consorcio
+			DROP COLUMN CVU_CBU_Hash
+		END
+	END CATCH;
+	GO
 ---------------------------------------------UnidadFuncional---------------------------------------------
 IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.UnidadFuncional') 
 				AND name= 'CVU_CBU_encriptado')
@@ -381,9 +529,13 @@ BEGIN
 END
 GO
 
+BEGIN TRY
+BEGIN TRAN
+
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.UnidadFuncional') AND name= 'CVU_CBU' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
+	PRINT 'Cifrando datos de Consorcio.UnidadFuncional...'
 
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
@@ -399,8 +551,38 @@ BEGIN
 	EXEC sp_rename 'Consorcio.UnidadFuncional.CVU_CBU_encriptado','CVU_CBU','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
+	PRINT 'Consorcio.UnidadFuncional Cifrado correctamente'
 END
-GO
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH 
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Consorcio.UnidadFuncional'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Consorcio.UnidadFuncional')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Consorcio.UnidadFuncional
+			DROP COLUMN	CVU_CBU_encriptado
+		END
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Consorcio.UnidadFuncional')
+			AND name LIKE '%hash'
+		)
+		BEGIN
+			ALTER TABLE Consorcio.UnidadFuncional
+			DROP COLUMN CVU_CBU_Hash
+		END
+	END CATCH;
+	GO
 --------------------------------------------DetalleExpensa-------------------------------------------------
 IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.DetalleExpensa') 
 				AND name= 'prorrateoOrdinario_encriptado')
@@ -418,9 +600,13 @@ BEGIN
 END
 GO
 
+BEGIN TRY
+BEGIN TRAN
+
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.DetalleExpensa') AND name= 'prorrateoOrdinario' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
+	PRINT 'Cifrando Negocio.DetalleExpensa...'
 
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
@@ -458,8 +644,45 @@ BEGIN
 	EXEC sp_rename 'Negocio.DetalleExpensa.segundoVencimiento_encriptado','segundoVencimiento','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
+	PRINT 'Negocio.DetalleExpensa Cifrado correctamente'
 END
-GO
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH 
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Negocio.DetalleExpensa'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Negocio.DetalleExpensa')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Negocio.DetalleExpensa
+			DROP COLUMN	prorrateoOrdinario_encriptado,
+						prorrateoExtaordinario_encriptado,
+						interesMora_encriptado,
+						totalaPagar_encriptado,
+						saldoAnteriorAbonado_encriptado,
+						pagosRecibidos_encriptado,
+						primerVencimiento_encriptado,
+						segundoVencimiento_encriptado
+		END
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Negocio.DetalleExpensa')
+			AND name LIKE '%hash'
+		)
+		BEGIN
+			ALTER TABLE Negocio.DetalleExpensa
+			DROP COLUMN primerVencimiento_hash
+		END
+	END CATCH;
+	GO
 --------------------------------------------------Expensa-----------------------------------------------------
 IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.Expensa') 
 				AND name= 'saldoAnterior_encriptado')
@@ -474,9 +697,14 @@ BEGIN
 END
 GO
 
+BEGIN TRY 
+BEGIN TRAN
+
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.Expensa') AND name= 'saldoAnterior' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
+	PRINT 'Cifrando datos de Negocio.Expensa...'
+
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
@@ -506,8 +734,32 @@ EXEC sp_rename 'Negocio.Expensa.egresos_encriptado','egresos','COLUMN'
 EXEC sp_rename 'Negocio.Expensa.saldoCierre_encriptado','saldoCierre','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
+	PRINT 'Negocio.Expensa Cifrado correctamente'
 END
-GO
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH 
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Negocio.Expensa'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Negocio.Expensa')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Negocio.Expensa
+			DROP COLUMN	saldoAnterior_encriptado,
+						ingresosEnTermino_encriptado,
+						ingresosAdeudados_encriptado,
+						ingresosAdelantados_encriptado,
+						egresos_encriptado,
+						saldoCierre_encriptado
+		END
+	END CATCH;
+	GO
 ----------------------------------------GastoOrdinario----------------------------------------------------
 IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.GastoOrdinario')
 				AND name= 'nroFactura_encriptado')
@@ -519,9 +771,14 @@ BEGIN
 END
 GO
 
+BEGIN TRY
+BEGIN TRAN
+
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.GastoOrdinario') AND name= 'nombreEmpresaoPersona' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
+	PRINT 'Cifrando datos de Negocio.GastoOrdinario...'
+
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
@@ -540,8 +797,29 @@ BEGIN
 	EXEC sp_rename 'Negocio.GastoOrdinario.detalle_encriptado','detalle','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
+	PRINT 'Negocio.GastoOrdinario Cifrado correctamente'
 END
-GO
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH 
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Negocio.GastoOrdinario'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Negocio.GastoOrdinario')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Negocio.GastoOrdinario
+			DROP COLUMN	nombreEmpresaoPersona_encriptado,
+						importeTotal_encriptado,
+						detalle_encriptado
+		END
+	END CATCH;
+	GO
 
 ---------------------------------------------GastoExtaordinario------------------------------------------------
 
@@ -549,19 +827,23 @@ IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.Gas
 			AND name= 'nroFactura_encriptado')
 BEGIN
 
-ALTER TABLE Negocio.GastoExtraordinario
-ADD nombreEmpresaoPersona_encriptado VARBINARY(MAX),
-	fechaEmision_encriptado VARBINARY(MAX),
-	importeTotal_encriptado VARBINARY(MAX),
-	detalle_encriptado VARBINARY(MAX),
-	esPagoTotal_encriptado VARBINARY(MAX),
-	totalCuota_encriptado VARBINARY(MAX)
+	ALTER TABLE Negocio.GastoExtraordinario
+	ADD nombreEmpresaoPersona_encriptado VARBINARY(MAX),
+		fechaEmision_encriptado VARBINARY(MAX),
+		importeTotal_encriptado VARBINARY(MAX),
+		detalle_encriptado VARBINARY(MAX),
+		esPagoTotal_encriptado VARBINARY(MAX),
+		totalCuota_encriptado VARBINARY(MAX)
 END
 GO
 
+BEGIN TRY
+BEGIN TRAN
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.GastoExtraordinario') AND name= 'nombreEmpresaoPersona' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
+	PRINT 'Cifrando datos de Negocio.GastoExtraordinario...'
+
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
@@ -590,8 +872,33 @@ EXEC sp_rename 'Negocio.GastoExtraordinario.esPagoTotal_encriptado','esPagoTotal
 EXEC sp_rename 'Negocio.GastoExtraordinario.totalCuota_encriptado','totalCuota','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
+	PRINT 'Negocio.GastoExtraordinario Cifrado correctamente'
 END
-GO
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH 
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Negocio.GastoExtraordinario'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Negocio.GastoExtraordinario')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Negocio.GastoExtraordinario
+			DROP COLUMN	nombreEmpresaoPersona_encriptado,
+						fechaEmision_encriptado,
+						importeTotal_encriptado,
+						detalle_encriptado,
+						esPagoTotal_encriptado,
+						totalCuota_encriptado
+		END
+	END CATCH;
+	GO
+
 ---------------------------------------PagoAplicado-----------------------------------------------------------
 
 IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Pago.PagoAplicado') 
@@ -603,9 +910,13 @@ BEGIN
 END
 GO
 
+BEGIN TRY 
+BEGIN TRAN
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Pago.PagoAplicado') AND name= 'importeAplicado' 
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
+	PRINT 'Cifrando datos de Pago.PagoAplicado...'
+
 	OPEN SYMMETRIC KEY DatosPersonas
 	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
@@ -616,12 +927,30 @@ BEGIN
 	ALTER TABLE Pago.PagoAplicado
 	DROP COLUMN importeAplicado
 
-
 	EXEC sp_rename 'Pago.PagoAplicado.importeAplicado_encriptado','importeAplicado','COLUMN'
 
 	CLOSE SYMMETRIC KEY DatosPersonas;
+	PRINT 'Pago.PagoAplicado Cifrado correctamente'
 END
-GO
+	COMMIT TRAN;
+END TRY
+
+BEGIN CATCH 
+	ROLLBACK TRAN;
+		PRINT 'No se pudo cifrar Pago.PagoAplicado'
+
+		IF EXISTS(
+			SELECT 1 
+			FROM sys.columns 
+			WHERE object_id = OBJECT_ID('Pago.PagoAplicado')
+			AND name LIKE '%encriptado'
+		)
+		BEGIN
+			ALTER TABLE Pago.PagoAplicado
+			DROP COLUMN	importeAplicado_encriptado
+		END
+	END CATCH;
+	GO
 ------------------------Modificacion de indices y constraints----------------------------------------------
 
 IF NOT EXISTS (SELECT 1 FROM sys.key_constraints
