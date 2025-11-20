@@ -1016,3 +1016,133 @@ GO
 IF OBJECT_ID('Reporte.sp_Reporte2_RecaudacionMesDepto', 'P') IS NOT NULL
     PRINT 'SP Para el reporte 2: Reporte.sp_Reporte2_RecaudacionMesDepto creado con exito'
 GO
+
+/*
+    REPORTE 5:
+    Obtenga los 3 (tres) propietarios con mayor morosidad. 
+    Presente información de contacto y DNI de los propietarios para que la administración los pueda 
+    contactar o remitir el trámite al estudio jurídico.
+    CON XML
+*/
+IF OBJECT_ID('Reporte.sp_Reporte5_MayoresMorosos_XML', 'P') IS NOT NULL
+    DROP PROCEDURE Reporte.sp_Reporte5_MayoresMorosos_XML;
+GO
+
+CREATE OR ALTER PROCEDURE Reporte.sp_Reporte5_MayoresMorosos_XML
+    @idConsorcio INT,
+    @fechaDesde  DATE,
+    @fechaHasta  DATE = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @fechaHasta IS NULL 
+        SET @fechaHasta = CAST(GETDATE() AS DATE);
+
+    OPEN SYMMETRIC KEY DatosPersonas
+        DECRYPTION BY CERTIFICATE CertificadoEncriptacion;
+
+    WITH DeudaPorDetalle AS 
+    (
+        SELECT 
+            de.expensaId,
+            de.idUnidadFuncional,
+
+            -- Desencriptar la fecha
+            CASE 
+                WHEN ISDATE(CONVERT(VARCHAR(50), DECRYPTBYKEY(de.primerVencimiento))) = 1
+                    THEN CONVERT(date, CONVERT(VARCHAR(50), DECRYPTBYKEY(de.primerVencimiento)))
+                ELSE NULL
+            END AS primerVencimiento,
+
+            -- Desencriptar totalaPagar y pagosRecibidos
+            CONVERT(decimal(18,2),
+                CASE 
+                    WHEN ISNUMERIC(CONVERT(VARCHAR(50), DECRYPTBYKEY(de.totalaPagar))) = 1
+                        THEN CONVERT(VARCHAR(50), DECRYPTBYKEY(de.totalaPagar))
+                    ELSE '0'
+                END
+            )
+            -
+            ISNULL(
+                CONVERT(decimal(18,2),
+                    CASE 
+                        WHEN ISNUMERIC(CONVERT(VARCHAR(50), DECRYPTBYKEY(de.pagosRecibidos))) = 1
+                            THEN CONVERT(VARCHAR(50), DECRYPTBYKEY(de.pagosRecibidos))
+                        ELSE '0'
+                    END
+                ), 
+            0) AS Deuda
+
+        FROM Negocio.DetalleExpensa AS de
+          WHERE 
+            (@fechaDesde IS NULL OR 
+                CASE 
+                    WHEN ISDATE(CONVERT(VARCHAR(50), DECRYPTBYKEY(de.primerVencimiento))) = 1
+                        THEN CONVERT(date, CONVERT(VARCHAR(50), DECRYPTBYKEY(de.primerVencimiento)))
+                END >= @fechaDesde)
+
+        AND (@fechaHasta IS NULL OR 
+                CASE 
+                    WHEN ISDATE(CONVERT(VARCHAR(50), DECRYPTBYKEY(de.primerVencimiento))) = 1
+                        THEN CONVERT(date, CONVERT(VARCHAR(50), DECRYPTBYKEY(de.primerVencimiento)))
+                END <= @fechaHasta)
+    ),
+    -- CTE: Deuda agrupada por Persona (propietario)
+    DeudaPorPersona AS 
+    (
+        SELECT
+            -- Datos personales desencriptados
+            CONVERT(VARCHAR(20),  DECRYPTBYKEY(p.dni))       AS dni,
+            CONVERT(VARCHAR(50),  DECRYPTBYKEY(p.nombre))    AS nombre,
+            CONVERT(VARCHAR(50),  DECRYPTBYKEY(p.apellido))  AS apellido,
+            CONVERT(VARCHAR(100), DECRYPTBYKEY(p.email))     AS email,
+            CONVERT(VARCHAR(20),  DECRYPTBYKEY(p.telefono))  AS telefono,
+
+            SUM(d.Deuda) AS MorosidadTotal
+
+        FROM DeudaPorDetalle d
+        INNER JOIN Consorcio.UnidadFuncional uf ON uf.id = d.idUnidadFuncional
+        INNER JOIN Negocio.Expensa e            ON e.id = d.expensaId
+        INNER JOIN Consorcio.Consorcio c        ON c.id = uf.consorcioId
+
+        -- Relación por CVU/CBU HASH
+        INNER JOIN Consorcio.Persona p
+            ON p.CVU_CBU_hash = uf.CVU_CBU_hash
+
+        WHERE (@idConsorcio IS NULL OR c.id = @idConsorcio)
+
+        GROUP BY 
+            CONVERT(VARCHAR(20),  DECRYPTBYKEY(p.dni)),
+            CONVERT(VARCHAR(50),  DECRYPTBYKEY(p.nombre)),
+            CONVERT(VARCHAR(50),  DECRYPTBYKEY(p.apellido)),
+            CONVERT(VARCHAR(100), DECRYPTBYKEY(p.email)),
+            CONVERT(VARCHAR(20),  DECRYPTBYKEY(p.telefono))
+
+        HAVING SUM(d.Deuda) > 0.01
+    )
+
+
+    -- OUTPUT en XML (TOP 3 mayores morosos)
+    SELECT
+    (
+        SELECT TOP (3)
+            p.dni              AS [@dni],
+            p.nombre           AS [nombre],
+            p.apellido         AS [apellido],
+            p.email            AS [email],
+            p.telefono         AS [telefono],
+            p.MorosidadTotal   AS [morosidad]
+        FROM DeudaPorPersona p
+        ORDER BY p.MorosidadTotal DESC
+        FOR XML PATH('propietario'), ROOT('mayoresMorosos'), TYPE
+    ) AS XML_Reporte5;
+
+    -- Cerramos la llave simétrica
+    CLOSE SYMMETRIC KEY DatosPersonas;
+
+END
+GO
+
+PRINT 'SP Reporte 5 (cifrado) creado con éxito';
+GO
