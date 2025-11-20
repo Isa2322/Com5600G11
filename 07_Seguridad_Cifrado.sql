@@ -31,7 +31,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Perso
 BEGIN
 	RAISERROR('Los datos ya estan encriptados',16,1)
 END
-GO
+
 -------------------------------------------------------
 -------------------- ENCRIPTACION ---------------------
 -------------------------------------------------------
@@ -45,9 +45,9 @@ IF NOT EXISTS(SELECT 1 FROM sys.symmetric_keys where name = 'DatosPersonas')
 	END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.certificates WHERE NAME = 'CertifacadoEncriptacion')
+IF NOT EXISTS (SELECT 1 FROM sys.certificates WHERE NAME = 'CertificadoEncriptacion')
 	BEGIN
-		CREATE CERTIFICATE CertifacadoEncriptacion
+		CREATE CERTIFICATE CertificadoEncriptacion
 		WITH SUBJECT ='Certificado de datos sensibles'
 	END
 GO
@@ -55,7 +55,7 @@ IF NOT EXISTS(SELECT 1 FROM sys.symmetric_keys where name = 'DatosPersonas')
 	BEGIN
 		CREATE SYMMETRIC KEY DatosPersonas
 		WITH ALGORITHM = AES_256
-		ENCRYPTION BY CERTIFICATE CertifacadoEncriptacion
+		ENCRYPTION BY CERTIFICATE CertificadoEncriptacion
 	END
 GO
 
@@ -218,12 +218,11 @@ BEGIN
 END
 GO
 
-IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Persona') AND name= 'dni' 
-				AND system_type_id <>TYPE_ID('VARBINARY')) 
+IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Persona') AND name= 'dni' AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	--Se guardan los datos encrip´tados en las columnas nuevas
 	UPDATE Consorcio.Persona
@@ -278,7 +277,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Cuent
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Consorcio.CuentaBancaria
 	SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'),CVU_CBU),
@@ -321,7 +320,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Pago.Pago') AND
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Pago.Pago
 	SET cbuCuentaOrigen_encriptado= ENCRYPTBYKEY(Key_GUID('DatosPersonas'), CONVERT (VARCHAR,cbuCuentaOrigen)),
@@ -355,7 +354,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Conso
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Consorcio.Consorcio
 	SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'),CVU_CBU),
@@ -387,7 +386,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Consorcio.Unida
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Consorcio.UnidadFuncional
 	SET CVU_CBU_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'),CVU_CBU),
@@ -424,7 +423,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.Detalle
 BEGIN
 
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	Update Negocio.DetalleExpensa
 	SET prorrateoOrdinario_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), CONVERT (VARCHAR,prorrateoOrdinario)),
@@ -479,7 +478,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.Expensa
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 UPDATE Negocio.Expensa
 SET saldoAnterior_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), CONVERT (VARCHAR,saldoAnterior)),
@@ -524,7 +523,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.GastoOr
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Negocio.GastoOrdinario
 	SET nombreEmpresaoPersona_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), nombreEmpresaoPersona),
@@ -564,7 +563,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Negocio.GastoEx
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 UPDATE Negocio.GastoExtraordinario
 SET nombreEmpresaoPersona_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), nombreEmpresaoPersona),
@@ -580,7 +579,8 @@ DROP COLUMN nombreEmpresaoPersona,
 			importeTotal,
 			detalle,
 			esPagoTotal,
-			totalCuota
+			totalCuota;
+
 
 EXEC sp_rename 'Negocio.GastoExtraordinario.nombreEmpresaoPersona_encriptado','nombreEmpresaoPersona','COLUMN'
 EXEC sp_rename 'Negocio.GastoExtraordinario.fechaEmision_encriptado','fechaEmision','COLUMN'
@@ -607,7 +607,7 @@ IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('Pago.PagoAplica
 				AND system_type_id <>TYPE_ID('VARBINARY')) 
 BEGIN
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion
 
 	UPDATE Pago.PagoAplicado
 	SET importeAplicado_encriptado = ENCRYPTBYKEY(Key_GUID('DatosPersonas'), CONVERT (VARCHAR,importeAplicado))
@@ -638,7 +638,7 @@ GO
 IF OBJECT_ID('Consorcio.PK_CVU_CBU','PK') IS NULL
 BEGIN
 
-	ALTER TABLE Consorcio.CuentaBancaria 
+	ALTER TABLE Consorcio.CuentaBancaria
 	ADD CONSTRAINT PK_CVU_CBU PRIMARY KEY CLUSTERED(CVU_CBU_Hash)
 END
 GO
@@ -789,6 +789,129 @@ GO
 -------------------------------------Modificacion de sp de Reportes------------------------------------------
 -------------------------------------------------------------------------------------------------------------
 /*
+    REPORTE 1:
+    Se desea analizar el flujo de caja en forma semanal
+*/
+
+IF OBJECT_ID('Reporte.sp_Reporte1_FlujoSemanal', 'P') IS NOT NULL
+    DROP PROCEDURE Reporte.sp_Reporte1_FlujoSemanal
+GO
+
+CREATE or ALTER PROCEDURE Reporte.sp_Reporte1_FlujoSemanal
+(
+    @NombreConsorcio VARCHAR(100),
+    @PeriodoAnio INT,
+    @PeriodoMes INT
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IdConsorcio INT;
+    DECLARE @IdExpensa INT;
+
+    -- 1. Abrimos la llave simétrica para poder leer los datos
+    -- Asegúrate de que el nombre del certificado sea el correcto (con o sin el error de tipeo previo)
+    OPEN SYMMETRIC KEY DatosPersonas
+    DECRYPTION BY CERTIFICATE CertificadoEncriptacion;
+
+    -- 2. Buscar la Expensa y el ID del Consorcio
+    -- (La tabla Consorcio mantiene el nombre en texto plano según tu script, así que esto no cambia)
+    SELECT 
+        @IdConsorcio = C.id,
+        @IdExpensa = E.id
+    FROM Consorcio.Consorcio AS C
+    INNER JOIN Negocio.Expensa AS E ON E.consorcioId = C.id
+    WHERE C.nombre = @NombreConsorcio 
+      AND E.fechaPeriodoAnio = @PeriodoAnio 
+      AND E.fechaPeriodoMes = @PeriodoMes;
+
+    -- 3. Validar si la Expensa fue encontrada
+    IF @IdExpensa IS NULL
+    BEGIN
+        CLOSE SYMMETRIC KEY DatosPersonas; -- Cerramos llave antes del error
+        IF @IdConsorcio IS NULL
+        BEGIN
+             RAISERROR('El Consorcio con nombre "%s" no fue encontrado.', 16, 1, @NombreConsorcio);
+        END
+        ELSE
+        BEGIN
+             RAISERROR('La Expensa para el Consorcio "%s" en el periodo %d/%d no fue encontrada.', 16, 1, @NombreConsorcio, @PeriodoMes, @PeriodoAnio);
+        END
+        RETURN;
+    END;
+
+    -- 4. Inicia la lógica de CTE con Desencriptación
+    WITH EgresosCombinados AS ( 
+        -- A. Gastos Ordinarios
+        -- Nota: En tu script, GastoOrdinario NO encriptó fechaEmision, solo importeTotal.
+        SELECT
+            fechaEmision, 
+            CONVERT(DECIMAL(18,2), CONVERT(VARCHAR, DECRYPTBYKEY(importeTotal))) AS Gasto_Ordinario,
+            0.00 AS Gasto_Extraordinario,
+            CONVERT(DECIMAL(18,2), CONVERT(VARCHAR, DECRYPTBYKEY(importeTotal))) AS Gasto_Total
+        FROM Negocio.GastoOrdinario
+        WHERE idExpensa = @IdExpensa 
+        
+        UNION ALL
+        
+        -- B. Gastos Extraordinarios
+        -- Nota: En tu script, GastoExtraordinario SÍ encriptó fechaEmision e importeTotal.
+        SELECT
+            CONVERT(DATE, CONVERT(VARCHAR, DECRYPTBYKEY(fechaEmision))) AS fechaEmision, 
+            0.00 AS Gasto_Ordinario,
+            CONVERT(DECIMAL(18,2), CONVERT(VARCHAR, DECRYPTBYKEY(importeTotal))) AS Gasto_Extraordinario,
+            CONVERT(DECIMAL(18,2), CONVERT(VARCHAR, DECRYPTBYKEY(importeTotal))) AS Gasto_Total
+        FROM Negocio.GastoExtraordinario
+        WHERE idExpensa = @IdExpensa
+    ),
+    EgresosSemanal AS ( 
+        -- Agrupar los egresos por semana (Ya con los datos desencriptados)
+        SELECT
+            YEAR(fechaEmision) AS Anio,
+            MONTH(fechaEmision) AS Mes,
+            DATEPART(wk, fechaEmision) AS Semana, 
+            SUM(Gasto_Ordinario) AS Gasto_Ordinario_Semanal,
+            SUM(Gasto_Extraordinario) AS Gasto_Extraordinario_Semanal,
+            SUM(Gasto_Total) AS Gasto_Semanal_Total
+        FROM EgresosCombinados
+        GROUP BY YEAR(fechaEmision), MONTH(fechaEmision), DATEPART(wk, fechaEmision)
+    )
+    
+    -- 5. SELECT final
+    SELECT
+        @NombreConsorcio AS Nombre_Consorcio, 
+        @IdConsorcio AS ID_Consorcio,
+        @IdExpensa AS ID_Expensa,
+        FORMAT(CAST(CAST(@PeriodoAnio AS VARCHAR) + '-' + CAST(@PeriodoMes AS VARCHAR) + '-01' AS DATE), 'yyyy-MM') AS Periodo,
+        ES.Anio,
+        ES.Mes,
+        ES.Semana,
+
+        -- Formateo de salida
+        FORMAT(ES.Gasto_Ordinario_Semanal, 'N2') AS Egreso_Ordinario,
+        FORMAT(ES.Gasto_Extraordinario_Semanal, 'N2') AS Egreso_Extraordinario,
+        FORMAT(ES.Gasto_Semanal_Total, 'N2') AS Egreso_Semanal_Total,
+        
+         -- Acumulado Progresivo
+        FORMAT(SUM(ES.Gasto_Semanal_Total) OVER (
+            ORDER BY ES.Anio, ES.Semana
+            ROWS UNBOUNDED PRECEDING
+        ), 'N2') AS Acumulado_Progresivo,
+        
+        -- Promedio en el Periodo
+        FORMAT(AVG(ES.Gasto_Semanal_Total) OVER (), 'N2') AS Promedio_Periodo
+        
+    FROM EgresosSemanal AS ES
+    WHERE @PeriodoAnio = ES.Anio AND @PeriodoMes = ES.Mes
+    ORDER BY ES.Anio, ES.Semana;
+
+    -- 6. Cerrar la llave
+    CLOSE SYMMETRIC KEY DatosPersonas;
+END
+GO
+
+/*
     REPORTE 2:
     Presente el total de recaudación por mes y departamento en formato de tabla cruzada.  
 
@@ -811,7 +934,7 @@ BEGIN
     */
 	--Abro la clave Simetrica
 	OPEN SYMMETRIC KEY DatosPersonas
-	DECRYPTION BY CERTIFICATE CertifacadoEncriptacion;
+	DECRYPTION BY CERTIFICATE CertificadoEncriptacion;
 
     WITH AplicadoDes AS(
 		SELECT idPago,
