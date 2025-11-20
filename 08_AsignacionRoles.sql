@@ -9,7 +9,7 @@ GO
 IF SUSER_ID('administrativoGeneral') IS NULL
 BEGIN
     CREATE LOGIN administrativoGeneral
-		WITH PASSWORD = 'admin#123',
+		WITH PASSWORD = 'admin123',
 		CHECK_POLICY = ON,
 		DEFAULT_DATABASE = [Com5600G11];
 END
@@ -28,7 +28,7 @@ GO
 IF SUSER_ID('administrativoOperativo') IS NULL
 BEGIN
     CREATE LOGIN administrativoOperativo
-		WITH PASSWORD = 'oper#4321',
+		WITH PASSWORD = 'oper4321',
 		CHECK_POLICY = ON,
 		DEFAULT_DATABASE = [Com5600G11];
 END
@@ -37,7 +37,7 @@ GO
 IF SUSER_ID('sistema') IS NULL
 BEGIN
     CREATE LOGIN sistema
-		WITH PASSWORD = 'sistema#4321',
+		WITH PASSWORD = 'sistema4321',
 		CHECK_POLICY = ON,
 		DEFAULT_DATABASE = [Com5600G11];
 END
@@ -123,3 +123,14 @@ ALTER ROLE AdministrativosOperativos ADD MEMBER administrativoOperativo;
 ALTER ROLE Sistemas ADD MEMBER sistema;
 GO
 
+/*
+USE Com5600G11;
+GO
+
+EXECUTE AS LOGIN = 'administrativoBancario';
+SELECT SUSER_SNAME()   AS LoginActual,
+       USER_NAME()      AS UsuarioBD;
+-- selects que queramos o imports
+
+REVERT;  -- vuelve a tu usuario
+*/
