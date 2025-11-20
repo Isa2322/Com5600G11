@@ -1018,6 +1018,208 @@ IF OBJECT_ID('Reporte.sp_Reporte2_RecaudacionMesDepto', 'P') IS NOT NULL
 GO
 
 /*
+    REPORTE 3:
+    Presente un cuadro cruzado con la recaudación total desagregada según su procedencia (ordinario, extraordinario, etc.) según el periodo.
+*/
+IF OBJECT_ID('Reporte.sp_Reporte3_RecaudacionPorProcedencia', 'P') IS NOT NULL
+    DROP PROCEDURE Reporte.sp_Reporte3_RecaudacionPorProcedencia
+GO
+CREATE OR ALTER PROCEDURE Reporte.sp_Reporte3_RecaudacionPorProcedencia
+    @idConsorcio INT = NULL, 
+    @fechaDesde  DATE = NULL, 
+    @fechaHasta  DATE = NULL 
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF @fechaHasta IS NULL SET @fechaHasta = CAST(GETDATE() AS DATE);
+
+    OPEN SYMMETRIC KEY DatosPersonas
+        DECRYPTION BY CERTIFICATE CertificadoEncriptacion;
+
+    WITH Pagos AS
+    (
+        SELECT 
+            pa.idPago,
+            CAST(p.fecha AS DATE) AS fechaPago,
+            YEAR(p.fecha) AS anio,
+            MONTH(p.fecha) AS mes,
+
+            -- importeAplicado desencriptado
+            CONVERT(decimal(18,2), CONVERT(VARCHAR(50), DECRYPTBYKEY(pa.importeAplicado))) AS importeAplicado,
+
+            -- prorrateos desencriptados
+            CONVERT(decimal(18,6), CONVERT(VARCHAR(50), DECRYPTBYKEY(de.prorrateoOrdinario))) AS prorrateoOrdinario,
+            CONVERT(decimal(18,6), CONVERT(VARCHAR(50), DECRYPTBYKEY(de.prorrateoExtraordinario))) AS prorrateoExtraordinario,
+            CONVERT(decimal(18,6), CONVERT(VARCHAR(50), DECRYPTBYKEY(de.interesMora))) AS interesMora,
+
+            uf.consorcioId
+        FROM Pago.PagoAplicado pa
+        INNER JOIN Pago.Pago p ON p.id = pa.idPago
+        INNER JOIN Negocio.DetalleExpensa de ON de.id = pa.idDetalleExpensa
+        INNER JOIN Consorcio.UnidadFuncional uf ON uf.id = de.idUnidadFuncional
+        WHERE (@idConsorcio IS NULL OR uf.consorcioId = @idConsorcio)
+          AND (@fechaDesde IS NULL OR CAST(p.fecha AS DATE) >= @fechaDesde)
+          AND (@fechaHasta IS NULL OR CAST(p.fecha AS DATE) <= @fechaHasta)
+    ),
+    Distribuido AS
+    (
+        SELECT
+            anio, mes,
+            ISNULL(prorrateoOrdinario,0) AS wOrd,
+            ISNULL(prorrateoExtraordinario,0) AS wExt,
+            ISNULL(interesMora,0) AS wMora,
+            importeAplicado
+        FROM Pagos
+    ),
+    Partes AS
+    (
+        SELECT
+            anio, mes,
+            CASE WHEN (wOrd + wExt + wMora) > 0 
+                 THEN importeAplicado * (wOrd / (wOrd + wExt + wMora))
+                 ELSE 0 END AS rec_Ordinario,
+            CASE WHEN (wOrd + wExt + wMora) > 0 
+                 THEN importeAplicado * (wExt / (wOrd + wExt + wMora))
+                 ELSE 0 END AS rec_Extraordinario,
+            CASE WHEN (wOrd + wExt + wMora) > 0 
+                 THEN importeAplicado * (wMora / (wOrd + wExt + wMora))
+                 ELSE 0 END AS rec_Mora
+        FROM Distribuido
+    )
+
+    SELECT 
+        CONCAT(anio, '-', RIGHT('00' + CAST(mes AS VARCHAR(2)),2)) AS Periodo,
+        SUM(rec_Ordinario) AS Ordinario,
+        SUM(rec_Extraordinario) AS Extraordinario,
+        SUM(rec_Mora) AS Mora,
+        SUM(rec_Ordinario + rec_Extraordinario + rec_Mora) AS Total
+    FROM Partes
+    GROUP BY anio, mes
+    ORDER BY anio, mes;
+
+    CLOSE SYMMETRIC KEY DatosPersonas;
+END;
+GO
+IF OBJECT_ID('Reporte.sp_Reporte3_RecaudacionPorProcedencia', 'P') IS NOT NULL
+    PRINT 'SP Para el reporte 3: Reporte.sp_Reporte3_RecaudacionPorProcedencia creado con exito'
+GO
+
+/*
+    REPORTE 4:
+    Obtenga los 5 (cinco) meses de mayores gastos y los 5 (cinco) de mayores ingresos. 
+*/
+IF OBJECT_ID('Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos', 'P') IS NOT NULL
+    DROP PROCEDURE Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos;
+GO
+
+CREATE PROCEDURE Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos
+    @TopN INT = 5,
+    @Anio INT = NULL,
+    @ConsorcioID INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    OPEN SYMMETRIC KEY DatosPersonas
+        DECRYPTION BY CERTIFICATE CertificadoEncriptacion;
+
+    -- GASTOS ORDINARIOS (agrego y filtro por expensa/consorcio)
+    ;WITH GastosOrd AS (
+        SELECT 
+            YEAR(ngo.fechaEmision) AS Anio,
+            MONTH(ngo.fechaEmision) AS Mes,
+            SUM(CONVERT(decimal(18,2), CONVERT(VARCHAR(50), DECRYPTBYKEY(ngo.importeTotal)))) AS TotalGastos
+        FROM Negocio.GastoOrdinario ngo
+        INNER JOIN Negocio.Expensa exp ON ngo.idExpensa = exp.id
+        WHERE ngo.fechaEmision IS NOT NULL
+          AND (@Anio IS NULL OR YEAR(ngo.fechaEmision) = @Anio)
+          AND (@ConsorcioID IS NULL OR exp.consorcioId = @ConsorcioID)
+        GROUP BY YEAR(ngo.fechaEmision), MONTH(ngo.fechaEmision)
+    ),
+
+    -- GASTOS EXTRAORDINARIOS (fecha e importe cifrados)
+    GastosExt AS (
+        SELECT
+            YEAR(CONVERT(date, CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.fechaEmision)))) AS Anio,
+            MONTH(CONVERT(date, CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.fechaEmision)))) AS Mes,
+            SUM(CONVERT(decimal(18,2), CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.importeTotal)))) AS TotalGastos
+        FROM Negocio.GastoExtraordinario ge
+        INNER JOIN Negocio.Expensa exp ON ge.idExpensa = exp.id
+        WHERE CONVERT(date, CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.fechaEmision))) IS NOT NULL
+          AND (@Anio IS NULL OR YEAR(CONVERT(date, CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.fechaEmision)))) = @Anio)
+          AND (@ConsorcioID IS NULL OR exp.consorcioId = @ConsorcioID)
+        GROUP BY YEAR(CONVERT(date, CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.fechaEmision)))), 
+                 MONTH(CONVERT(date, CONVERT(VARCHAR(50), DECRYPTBYKEY(ge.fechaEmision))))
+    ),
+
+    -- SUMA GASTOS POR MES (ORIGEN + EXTRA)
+    GastosPorMes AS (
+        SELECT Anio, Mes, SUM(TotalGastos) AS TotalGastos
+        FROM (
+            SELECT Anio, Mes, TotalGastos FROM GastosOrd
+            UNION ALL
+            SELECT Anio, Mes, TotalGastos FROM GastosExt
+        ) g
+        GROUP BY Anio, Mes
+        HAVING SUM(TotalGastos) > 0
+    ),
+
+    TopNGastos AS (
+        SELECT TOP (@TopN)
+            Anio, Mes,
+            DATENAME(MONTH, DATEFROMPARTS(Anio, Mes, 1)) AS NombreMes,
+            TotalGastos,
+            'Gasto' AS Tipo
+        FROM GastosPorMes
+        ORDER BY TotalGastos DESC
+    ),
+
+    -- INGRESOS: agrupo los pagos recibidos por periodo de la expensa
+    IngresosPorMes AS (
+        SELECT 
+            exp.fechaPeriodoAnio AS Anio,
+            exp.fechaPeriodoMes AS Mes,
+            SUM(CONVERT(decimal(18,2), CONVERT(VARCHAR(50), DECRYPTBYKEY(de.pagosRecibidos)))) AS TotalIngresos
+        FROM Negocio.DetalleExpensa de
+        INNER JOIN Negocio.Expensa exp ON de.expensaId = exp.id
+        WHERE de.pagosRecibidos IS NOT NULL
+          AND (@Anio IS NULL OR exp.fechaPeriodoAnio = @Anio)
+          AND (@ConsorcioID IS NULL OR exp.consorcioId = @ConsorcioID)
+        GROUP BY exp.fechaPeriodoAnio, exp.fechaPeriodoMes
+        HAVING SUM(CONVERT(decimal(18,2), CONVERT(VARCHAR(50), DECRYPTBYKEY(de.pagosRecibidos)))) > 0
+    ),
+
+    TopNIngresos AS (
+        SELECT TOP (@TopN)
+            Anio, Mes,
+            DATENAME(MONTH, DATEFROMPARTS(Anio, Mes, 1)) AS NombreMes,
+            TotalIngresos,
+            'Ingreso' AS Tipo
+        FROM IngresosPorMes
+        ORDER BY TotalIngresos DESC
+    )
+
+    -- Resultados combinados
+    SELECT Tipo, Anio, Mes, NombreMes, TotalGastos AS Monto
+    FROM TopNGastos
+
+    UNION ALL
+
+    SELECT Tipo, Anio, Mes, NombreMes, TotalIngresos AS Monto
+    FROM TopNIngresos
+
+    ORDER BY Tipo DESC, Monto DESC;
+
+    CLOSE SYMMETRIC KEY DatosPersonas;
+END;
+GO
+
+IF OBJECT_ID('Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos', 'P') IS NOT NULL
+    PRINT 'SP Para el reporte 4: Reporte.sp_Reporte4_ObtenerTopNMesesGastosIngresos creado con exito'
+GO
+
+/*
     REPORTE 5:
     Obtenga los 3 (tres) propietarios con mayor morosidad. 
     Presente información de contacto y DNI de los propietarios para que la administración los pueda 
@@ -1144,5 +1346,6 @@ BEGIN
 END
 GO
 
-PRINT 'SP Reporte 5 (cifrado) creado con éxito';
+IF OBJECT_ID('Reporte.sp_Reporte5_MayoresMorosos_XML', 'P') IS NOT NULL
+    PRINT 'SP Para el reporte 5: Reporte.sp_Reporte5_MayoresMorosos_XML creado con exito'
 GO
