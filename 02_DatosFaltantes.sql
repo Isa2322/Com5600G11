@@ -22,6 +22,7 @@ GO
 CREATE OR ALTER PROCEDURE Operaciones.CargarGastosGeneralesOrdinarios
 AS
 BEGIN
+	SET NOCOUNT ON;
     UPDATE GA
         SET
             GA.nombreEmpresaoPersona = ISNULL(GA.nombreEmpresaoPersona,
@@ -45,7 +46,7 @@ BEGIN
         FROM Negocio.GastoOrdinario GA
         WHERE UPPER(GA.tipoServicio) = 'GASTOS GENERALES'
         AND (NULLIF(LTRIM(RTRIM(GA.detalle)), '') IS NULL or NULLIF(LTRIM(RTRIM(GA.nombreEmpresaoPersona)), '') IS NULL );
-
+	SET NOCOUNT OFF;
 END
 GO
 
@@ -58,7 +59,7 @@ CREATE OR ALTER PROCEDURE Operaciones.sp_CargaTiposRol
 AS
 BEGIN
     SET NOCOUNT ON;
-
+	PRINT N'Iniciando Carga de datos de Tipos de Rol.';
     -- Inserta el tipo "Inquilino" si no existe
     IF NOT EXISTS (SELECT 1
     FROM Consorcio.TipoRol
@@ -82,6 +83,7 @@ BEGIN
     END
 
     PRINT N'Carga de datos de Tipos de Rol finalizada.';
+	SET NOCOUNT OFF;
 END
 GO
 
