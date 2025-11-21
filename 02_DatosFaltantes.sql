@@ -152,61 +152,43 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    /*
-        Rellena la tabla Consorcio.Cochera con datos derivados de UnidadFuncional.
-        - Se crea 1 cochera por UF (si el consorcio aún no tiene cocheras).
-        - El número se asigna incrementalmente por consorcio.
-        - El porcentaje de expensas es proporcional al m2 de la UF / total del consorcio.
-    */
+    PRINT 'Iniciando generación de Cocheras...';
 
-    DECLARE @idConsorcio INT, @maxNum INT;
-
-    DECLARE Consorcios CURSOR LOCAL FAST_FORWARD FOR
-        SELECT DISTINCT consorcioId
-    FROM Consorcio.UnidadFuncional;
-
-    OPEN Consorcios;
-    FETCH NEXT FROM Consorcios INTO @idConsorcio;
-
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        -- Calcular base del total de m2 del consorcio
-        DECLARE @totalM2 DECIMAL(18,2) = (
-            SELECT SUM(ISNULL(metrosCuadrados,0))
+    ;WITH TotalM2 AS (
+        SELECT 
+            consorcioId,
+            SUM(metrosCuadrados) AS totalM2
         FROM Consorcio.UnidadFuncional
-        WHERE consorcioId = @idConsorcio
-        );
-
-        -- Número actual de cocheras en este consorcio
-        SET @maxNum = ISNULL(
-            (SELECT MAX(10)
-        FROM Consorcio.Cochera c
-            INNER JOIN Consorcio.UnidadFuncional uf ON uf.id = c.unidadFuncionalId
-        WHERE uf.consorcioId = @idConsorcio),
-        0);
-
-        INSERT INTO Consorcio.Cochera
-            (unidadFuncionalId, numero, porcentajeExpensas)
+        GROUP BY consorcioId
+    ),
+    MaxNumero AS (
+        SELECT 
+            consorcioId,
+            MAX(numero) AS maxNum
+        FROM Consorcio.Cochera
+        GROUP BY consorcioId
+    ),
+    NuevasCocheras AS (
         SELECT
-            uf.id AS unidadFuncionalId,
-            ROW_NUMBER() OVER (ORDER BY uf.id) + @maxNum AS numero,
-            CASE WHEN @totalM2 > 0 THEN ROUND((uf.metrosCuadrados / @totalM2) * 100, 2) ELSE 0 END AS porcentajeExpensas
-        FROM Consorcio.UnidadFuncional uf
-        WHERE uf.consorcioId = @idConsorcio
-            AND NOT EXISTS (
-              SELECT 1
-            FROM Consorcio.Cochera c
-            WHERE c.unidadFuncionalId = uf.id
-          );
+            UF.id AS unidadFuncionalId,
+            UF.consorcioId,
+            ROW_NUMBER() OVER (PARTITION BY UF.consorcioId ORDER BY UF.id)
+                + ISNULL(MN.maxNum, 0) AS numeroAsignado,
+            ROUND( (UF.metrosCuadrados / TM.totalM2) * 100, 2 ) AS porcentajeExpensas
+        FROM Consorcio.UnidadFuncional UF
+        INNER JOIN TotalM2 TM ON TM.consorcioId = UF.consorcioId
+        LEFT JOIN MaxNumero MN ON MN.consorcioId = UF.consorcioId
+        WHERE NOT EXISTS (
+            SELECT 1 FROM Consorcio.Cochera C 
+            WHERE C.unidadFuncionalId = UF.id
+        )
+    )
+    INSERT INTO Consorcio.Cochera (unidadFuncionalId, numero, porcentajeExpensas)
+    SELECT unidadFuncionalId, numeroAsignado, porcentajeExpensas
+    FROM NuevasCocheras;
 
-        FETCH NEXT FROM Consorcios INTO @idConsorcio;
-    END
-
-    CLOSE Consorcios;
-    DEALLOCATE Consorcios;
-
-    PRINT '>> Cocheras generadas exitosamente.';
-END;
+    PRINT 'Cocheras generadas correctamente.';
+END
 GO
 
 IF OBJECT_ID('Operaciones.sp_RellenarCocheras', 'P') IS NOT NULL
@@ -222,59 +204,58 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    /*
-        Rellena la tabla Consorcio.Baulera con datos derivados de UnidadFuncional.
-        - Se crea 1 baulera por UF (si el consorcio aún no tiene bauleras).
-        - Número incremental por consorcio.
-        - Porcentaje de expensas = (m2 UF / total m2) * 0.5 para que represente menor peso.
-    */
+    PRINT 'Iniciando generación de Bauleras...';
 
-    DECLARE @idConsorcio INT, @maxNum INT;
-
-    DECLARE Consorcios CURSOR LOCAL FAST_FORWARD FOR
-        SELECT DISTINCT consorcioId
-    FROM Consorcio.UnidadFuncional;
-
-    OPEN Consorcios;
-    FETCH NEXT FROM Consorcios INTO @idConsorcio;
-
-    WHILE @@FETCH_STATUS = 0
-    BEGIN
-        DECLARE @totalM2 DECIMAL(18,2) = (
-            SELECT SUM(ISNULL(metrosCuadrados,0))
+    /* 1) Sumar metros cuadrados por consorcio */
+    ;WITH TotalM2 AS (
+        SELECT 
+            consorcioId,
+            SUM(metrosCuadrados) AS totalM2
         FROM Consorcio.UnidadFuncional
-        WHERE consorcioId = @idConsorcio
-        );
+        GROUP BY consorcioId
+    ),
 
-        SET @maxNum = ISNULL(
-            (SELECT MAX(10)
-        FROM Consorcio.Baulera b
-            INNER JOIN Consorcio.UnidadFuncional uf ON uf.id = b.unidadFuncionalId
-        WHERE uf.consorcioId = @idConsorcio),
-        0);
+    /* 2) Buscar el número máximo de baulera existente por consorcio */
+    MaxNumero AS (
+        SELECT 
+            consorcioId,
+            MAX(numero) AS maxNum
+        FROM Consorcio.Baulera
+        GROUP BY consorcioId
+    ),
 
-        INSERT INTO Consorcio.Baulera
-            (unidadFuncionalId, numero, porcentajeExpensas)
+    /* 3) Armar todas las bauleras nuevas a insertar */
+    NuevasBauleras AS (
         SELECT
-            uf.id AS unidadFuncionalId,
-            ROW_NUMBER() OVER (ORDER BY uf.id) + @maxNum AS numero,
-            CASE WHEN @totalM2 > 0 THEN ROUND((uf.metrosCuadrados / @totalM2) * 100 * 0.5, 2) ELSE 0 END AS porcentajeExpensas
-        FROM Consorcio.UnidadFuncional uf
-        WHERE uf.consorcioId = @idConsorcio
-            AND NOT EXISTS (
-              SELECT 1
-            FROM Consorcio.Baulera b
-            WHERE b.unidadFuncionalId = uf.id
-          );
+            UF.id AS unidadFuncionalId,
+            UF.consorcioId,
 
-        FETCH NEXT FROM Consorcios INTO @idConsorcio;
-    END
+            ROW_NUMBER() OVER (PARTITION BY UF.consorcioId ORDER BY UF.id)
+                + ISNULL(MN.maxNum, 0) AS numeroAsignado,
 
-    CLOSE Consorcios;
-    DEALLOCATE Consorcios;
+            ROUND((UF.metrosCuadrados / TM.totalM2) * 100, 2) AS porcentajeExpensas
 
-    PRINT '>> Bauleras generadas exitosamente.';
-END;
+        FROM Consorcio.UnidadFuncional UF
+        INNER JOIN TotalM2 TM 
+            ON TM.consorcioId = UF.consorcioId
+        LEFT JOIN MaxNumero MN 
+            ON MN.consorcioId = UF.consorcioId
+
+        /* Solo UF que NO tienen baulera previa */
+        WHERE NOT EXISTS (
+            SELECT 1 FROM Consorcio.Baulera B
+            WHERE B.unidadFuncionalId = UF.id
+        )
+    )
+
+    /* 4) Insertar TODAS las bauleras nuevas de una */
+    INSERT INTO Consorcio.Baulera (unidadFuncionalId, numero, porcentajeExpensas)
+    SELECT unidadFuncionalId, numeroAsignado, porcentajeExpensas
+    FROM NuevasBauleras;
+
+    PRINT 'Bauleras generadas correctamente.';
+
+END
 GO
 
 IF OBJECT_ID('Operaciones.sp_RellenarBauleras', 'P') IS NOT NULL
