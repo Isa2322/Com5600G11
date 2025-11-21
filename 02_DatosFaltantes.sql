@@ -163,10 +163,10 @@ BEGIN
     ),
     MaxNumero AS (
         SELECT 
-            consorcioId,
+            unidadFuncionalId,
             MAX(numero) AS maxNum
         FROM Consorcio.Cochera
-        GROUP BY consorcioId
+        GROUP BY unidadFuncionalId
     ),
     NuevasCocheras AS (
         SELECT
@@ -177,7 +177,7 @@ BEGIN
             ROUND( (UF.metrosCuadrados / TM.totalM2) * 100, 2 ) AS porcentajeExpensas
         FROM Consorcio.UnidadFuncional UF
         INNER JOIN TotalM2 TM ON TM.consorcioId = UF.consorcioId
-        LEFT JOIN MaxNumero MN ON MN.consorcioId = UF.consorcioId
+        LEFT JOIN MaxNumero MN ON MN.unidadFuncionalId = UF.consorcioId
         WHERE NOT EXISTS (
             SELECT 1 FROM Consorcio.Cochera C 
             WHERE C.unidadFuncionalId = UF.id
@@ -218,10 +218,10 @@ BEGIN
     /* 2) Buscar el número máximo de baulera existente por consorcio */
     MaxNumero AS (
         SELECT 
-            consorcioId,
+            unidadFuncionalId,
             MAX(numero) AS maxNum
         FROM Consorcio.Baulera
-        GROUP BY consorcioId
+        GROUP BY unidadFuncionalId
     ),
 
     /* 3) Armar todas las bauleras nuevas a insertar */
@@ -239,7 +239,7 @@ BEGIN
         INNER JOIN TotalM2 TM 
             ON TM.consorcioId = UF.consorcioId
         LEFT JOIN MaxNumero MN 
-            ON MN.consorcioId = UF.consorcioId
+            ON MN.unidadFuncionalId = UF.consorcioId
 
         /* Solo UF que NO tienen baulera previa */
         WHERE NOT EXISTS (
