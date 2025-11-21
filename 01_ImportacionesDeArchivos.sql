@@ -19,7 +19,7 @@ GO
 --==================================================================================================================
 CREATE OR ALTER PROCEDURE Operaciones.sp_ImportarPago (@RutaArchivo VARCHAR(255))
 AS
-BEGIN
+BEGIN TRY
     SET NOCOUNT ON;
     
     -- 1. Declaración de variable para la Forma de Pago por defecto
@@ -59,8 +59,8 @@ BEGIN
     END
     
     -- 5. Carga masiva (BULK INSERT) con manejo de errores
-    BEGIN TRY
-        PRINT('IMPORTANDO DATOS...');
+    BEGIN
+        PRINT('Iniciando importacion de Pagos Consorcios.');
         DECLARE @SQL NVARCHAR(MAX);
         
         SET @SQL = N'
@@ -75,16 +75,9 @@ BEGIN
             );';
 
         EXEC sp_executesql @SQL;
-    END TRY
-    BEGIN CATCH
-        -- Captura errores como Mens. 4861 (archivo no encontrado o bloqueado)
-        PRINT CONCAT('Error durante BULK INSERT: ', ERROR_MESSAGE());
-        -- Se aborta la ejecución si la carga falla
-        IF OBJECT_ID('Operaciones.PagosConsorcioTemp') IS NOT NULL DROP TABLE Operaciones.PagosConsorcioTemp;
-        RETURN;
-    END CATCH
+    END
 
-    -- 6. Limpieza de filas nulas (manteniendo tu lógica)
+    -- 6. Limpieza de filas nulas
     DELETE FROM Operaciones.PagosConsorcioTemp
     WHERE 
         idPago IS NULL
@@ -128,7 +121,31 @@ BEGIN
     IF OBJECT_ID('Operaciones.PagosConsorcioTemp') IS NOT NULL 
         DROP TABLE Operaciones.PagosConsorcioTemp;
         
-END
+END TRY
+BEGIN CATCH
+    DECLARE @ErrorNumber INT = ERROR_NUMBER();
+    DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+
+        -- Caso 1: archivo no encontrado
+    IF @ErrorNumber = 4860
+        BEGIN
+            RAISERROR
+            (
+                'ERROR: El archivo no existe o la ruta es incorrecta: %s',
+                16, 1, @RutaArchivo
+            );
+            RETURN;
+        END;
+
+        -- Caso 2: cualquier otro error del BULK INSERT
+        RAISERROR
+        (
+            'Error al intentar importar el archivo: %s',
+            16, 1, @ErrorMessage
+        )
+    RETURN
+END CATCH
+
 GO
 
 IF OBJECT_ID('Operaciones.sp_ImportarPago', 'P') IS NOT NULL
@@ -217,7 +234,7 @@ CREATE OR ALTER PROCEDURE Operaciones.sp_ImportarGastosMensuales
     @ruta VARCHAR(500) 
 )
 AS
-BEGIN
+BEGIN TRY
     SET NOCOUNT ON;
 
     DECLARE @sql NVARCHAR(MAX);
@@ -245,8 +262,7 @@ BEGIN
         RAISERROR('La ruta contiene caracteres no permitidos ('' , -- , /*, */ , ;).', 16, 1);
         RETURN;
     END
-    ELSE
-    BEGIN
+	BEGIN
         SET @sql = N'
         INSERT INTO #TemporalDatosServicio (NombreConsorcio, Mes, TipoGastoBruto, Importe, MesNumerico)
         SELECT
@@ -274,8 +290,7 @@ BEGIN
         WHERE Operaciones.LimpiarNumero(T.ImporteBruto) IS NOT NULL
             AND Operaciones.LimpiarNumero(T.ImporteBruto) > 0;';
         EXEC sp_executesql @sql
-    END;
-    
+    END;
     WITH CTE_GastosPreparados AS (
         SELECT
             CM.id AS consorcioId,
@@ -321,9 +336,32 @@ BEGIN
         -- Se usa un hash simple del ID Único Base para mantener 3 dígitos
         RIGHT('000' + CAST(ABS(CHECKSUM(GP.IDUnicoBase)) % 1000 AS VARCHAR(3)), 3) 
         AS nroFactura
-
     FROM CTE_GastosPreparados AS GP;
-    END 
+END TRY
+
+BEGIN CATCH
+        DECLARE @ErrorNumber INT = ERROR_NUMBER();
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+
+        -- Caso 1: archivo no encontrado
+        IF @ErrorNumber = 4860
+        BEGIN
+            RAISERROR
+            (
+                'ERROR: El archivo no existe o la ruta es incorrecta: %s',
+                16, 1, @ruta
+            );
+            RETURN;
+        END;
+
+        -- Caso 2: cualquier otro error del BULK INSERT
+        RAISERROR
+        (
+            'Error al intentar importar el archivo: %s',
+            16, 1, @ErrorMessage
+        )
+        RETURN
+END CATCH
 GO
 
 IF OBJECT_ID('Operaciones.sp_ImportarGastosMensuales', 'P') IS NOT NULL
@@ -337,101 +375,122 @@ GO
 CREATE OR ALTER PROCEDURE Operaciones.sp_ImportarInquilinosPropietarios
     @RutaArchivo VARCHAR(255)
 AS
-BEGIN
+BEGIN TRY
 
-    SET NOCOUNT ON;
+        SET NOCOUNT ON;
 
-    IF CHARINDEX('''', @RutaArchivo) > 0 OR
-        CHARINDEX('--', @RutaArchivo) > 0 OR
-        CHARINDEX('/*', @RutaArchivo) > 0 OR 
-        CHARINDEX('*/', @RutaArchivo) > 0 OR
-        CHARINDEX(';', @RutaArchivo) > 0
-  
-BEGIN
-    RAISERROR('Nombre de archivo contiene caracteres invalidos.', 16, 1); RETURN;
-END
+        IF CHARINDEX('''', @RutaArchivo) > 0 OR
+            CHARINDEX('--', @RutaArchivo) > 0 OR
+            CHARINDEX('/*', @RutaArchivo) > 0 OR 
+            CHARINDEX('*/', @RutaArchivo) > 0 OR
+            CHARINDEX(';', @RutaArchivo) > 0
+      
+    BEGIN
+        RAISERROR('Nombre de archivo contiene caracteres invalidos.', 16, 1); RETURN;
+    END
 
-    PRINT 'Iniciando importaci�n de: ' + @RutaArchivo;
+        PRINT 'Iniciando importacion de Inquilinos Propietarios';
 
--- Tabla temporal para importacion
-    DROP TABLE IF EXISTS #TemporalPersonas;
+    -- Tabla temporal para importacion
+        DROP TABLE IF EXISTS #TemporalPersonas;
 
-    CREATE TABLE #TemporalPersonas (
-        Nombre VARCHAR(30),
-        Apellido VARCHAR(30),
-        DNI BIGINT,
-        Email VARCHAR(50),
-        Telefono BIGINT,
-        CVU_CBU VARCHAR(22),
-        Tipo BIT
+        CREATE TABLE #TemporalPersonas (
+            Nombre VARCHAR(30),
+            Apellido VARCHAR(30),
+            DNI BIGINT,
+            Email VARCHAR(50),
+            Telefono BIGINT,
+            CVU_CBU VARCHAR(22),
+            Tipo BIT
+        );
+
+
+    -- bulk insert
+        DECLARE @sql NVARCHAR(MAX);
+
+        SET @sql = '
+            BULK INSERT #TemporalPersonas
+            FROM ''' + @RutaArchivo + '''
+            WITH
+            (
+                FIELDTERMINATOR = '';'',
+                ROWTERMINATOR = ''\n'',
+                CODEPAGE = ''ACP'',
+                FIRSTROW = 2
+            );';
+
+        EXEC(@sql);
+
+
+    
+    --borrar nulos
+        DELETE FROM #TemporalPersonas
+            WHERE 
+            (Nombre IS NULL OR Nombre = '') AND
+            (Apellido IS NULL OR Apellido = '') AND
+            (DNI IS NULL OR DNI = '') AND
+            (Email IS NULL OR Email = '') AND
+            (Telefono IS NULL OR Telefono = '') AND
+            (CVU_CBU IS NULL OR CVU_CBU = '') AND
+            (Tipo IS NULL OR Tipo = '');
+
+
+    -- Se insertan los archivos en las tablas correspondientes
+
+        DELETE FROM #TemporalPersonas
+        WHERE CVU_CBU IN (
+            SELECT CVU_CBU
+            FROM #TemporalPersonas
+            GROUP BY CVU_CBU
+            HAVING COUNT(*) > 1
     );
 
 
--- bulk insert
-    DECLARE @sql NVARCHAR(MAX);
+        INSERT INTO Consorcio.Persona (dni, nombre, apellido, CVU_CBU, telefono, email, idTipoRol)
+        SELECT 
+            LTRIM(RTRIM(tp.DNI)),
+            LTRIM(RTRIM(tp.Nombre)),
+            LTRIM(RTRIM(tp.Apellido)),
+            LTRIM(RTRIM(tp.CVU_CBU)),
+            LTRIM(RTRIM(tp.Telefono)),
+            REPLACE(LTRIM(RTRIM(tp.Email)), ' ', ''),
+            CASE tp.Tipo 
+                WHEN 1 THEN 1  
+                WHEN 0 THEN 2  
+            END AS idTipoRol
+        FROM #TemporalPersonas tp
+        WHERE NOT EXISTS (
+            SELECT 1 FROM Consorcio.Persona p 
+            WHERE p.DNI = tp.DNI
+            AND p.CVU_CBU = tp.CVU_CBU
+        );
 
-    PRINT 'Iniciando importaci�n de: ' + @RutaArchivo;
+        DROP TABLE IF EXISTS dbo.#TemporalPersonas
+		PRINT 'Importacion de Inquilinos Propietarios finalizada correctamente';
+END TRY
+BEGIN CATCH
+        DECLARE @ErrorNumber INT = ERROR_NUMBER();
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
 
-    SET @sql = '
-        BULK INSERT #TemporalPersonas
-        FROM ''' + @RutaArchivo + '''
-        WITH
+        -- Caso 1: archivo no encontrado
+        IF @ErrorNumber = 4860
+        BEGIN
+            RAISERROR
+            (
+                'ERROR: El archivo no existe o la ruta es incorrecta: %s',
+                16, 1, @RutaArchivo
+            );
+            RETURN;
+        END;
+
+        -- Caso 2: cualquier otro error del BULK INSERT
+        RAISERROR
         (
-            FIELDTERMINATOR = '';'',
-            ROWTERMINATOR = ''\n'',
-            CODEPAGE = ''ACP'',
-            FIRSTROW = 2
-        );';
-
-    EXEC(@sql);
-
-
-   
---borrar nulos
-    DELETE FROM #TemporalPersonas
-        WHERE 
-        (Nombre IS NULL OR Nombre = '') AND
-        (Apellido IS NULL OR Apellido = '') AND
-        (DNI IS NULL OR DNI = '') AND
-        (Email IS NULL OR Email = '') AND
-        (Telefono IS NULL OR Telefono = '') AND
-        (CVU_CBU IS NULL OR CVU_CBU = '') AND
-        (Tipo IS NULL OR Tipo = '');
-
-
--- Se insertan los archivos en las tablas correspondientes
-
-    DELETE FROM #TemporalPersonas
-    WHERE CVU_CBU IN (
-        SELECT CVU_CBU
-        FROM #TemporalPersonas
-        GROUP BY CVU_CBU
-        HAVING COUNT(*) > 1
-);
-
-
-    INSERT INTO Consorcio.Persona (dni, nombre, apellido, CVU_CBU, telefono, email, idTipoRol)
-    SELECT 
-        LTRIM(RTRIM(tp.DNI)),
-        LTRIM(RTRIM(tp.Nombre)),
-        LTRIM(RTRIM(tp.Apellido)),
-        LTRIM(RTRIM(tp.CVU_CBU)),
-        LTRIM(RTRIM(tp.Telefono)),
-        REPLACE(LTRIM(RTRIM(tp.Email)), ' ', ''),
-        CASE tp.Tipo 
-            WHEN 1 THEN 1  
-            WHEN 0 THEN 2  
-        END AS idTipoRol
-    FROM #TemporalPersonas tp
-    WHERE NOT EXISTS (
-        SELECT 1 FROM Consorcio.Persona p 
-        WHERE p.DNI = tp.DNI
-        AND p.CVU_CBU = tp.CVU_CBU
-    );
-
-
-    DROP TABLE IF EXISTS dbo.#TemporalPersonas
-END;
+            'Error al intentar importar el archivo: %s',
+            16, 1, @ErrorMessage
+        )
+        RETURN
+END CATCH
 GO
 
 IF OBJECT_ID('Operaciones.sp_ImportarInquilinosPropietarios', 'P') IS NOT NULL
@@ -445,7 +504,7 @@ GO
 CREATE OR ALTER PROCEDURE Operaciones.sp_ImportarDatosConsorcios
     @rutaArch VARCHAR(1000)
 AS
-BEGIN
+BEGIN TRY
     SET NOCOUNT ON;
 
     -- Validación básica de ruta
@@ -483,6 +542,7 @@ BEGIN
         );';
     EXEC(@sqlBulk);
 
+	PRINT 'Iniciando importacion de los datos de Consorcios';
     -- aca voy a actualizar
     UPDATE c
     SET
@@ -515,7 +575,31 @@ BEGIN
     -- dropeo la tabla temporal
     DROP TABLE #TempConsorciosBulk;
     SET NOCOUNT OFF;
-END
+	PRINT 'Importacion de los datos de Consorcios finalizada correctamente.';
+END TRY
+BEGIN CATCH
+        DECLARE @ErrorNumber INT = ERROR_NUMBER();
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+
+        -- Caso 1: archivo no encontrado
+        IF @ErrorNumber = 4860
+        BEGIN
+            RAISERROR
+            (
+                'ERROR: El archivo no existe o la ruta es incorrecta: %s',
+                16, 1, @rutaArch
+            );
+            RETURN;
+        END;
+
+        -- Caso 2: cualquier otro error del BULK INSERT
+        RAISERROR
+        (
+            'Error al intentar importar el archivo: %s',
+            16, 1, @ErrorMessage
+        )
+        RETURN
+END CATCH
 GO
 
 IF OBJECT_ID('Operaciones.sp_ImportarDatosConsorcios', 'P') IS NOT NULL
@@ -531,7 +615,7 @@ CREATE OR ALTER PROCEDURE  Operaciones.sp_ImportarDatosProveedores
     @rutaArch VARCHAR(500) 
 )
 AS
-BEGIN
+BEGIN TRY
     SET NOCOUNT ON;
 
     -- 1. Validar la ruta de entrada para evitar inyección SQL
@@ -564,17 +648,9 @@ BEGIN
                 CODEPAGE        = ''65001'',
                 TABLOCK, KEEPNULLS
             );';
+    EXEC sp_executesql @sql;
 
-    BEGIN TRY
-        EXEC sp_executesql @sql;
-    END TRY
-    BEGIN CATCH
-        PRINT 'Error al cargar el CSV. Detalles:';
-        PRINT ERROR_MESSAGE();
-        RAISERROR('No se pudieron cargar los datos del CSV. Verifique la ruta, permisos y formato.', 16, 1);
-        RETURN;
-    END CATCH;
-
+	PRINT 'Iniciando importacion de los datos de Proveedores.';
    -- select * from #TemporalProveedores;
     -- 4. CTE procesa la tabla
     WITH CTE_ProveedoresProcesados AS (
@@ -638,7 +714,31 @@ BEGIN
     IF OBJECT_ID('tempdb..#TemporalProveedores') IS NOT NULL DROP TABLE #TemporalProveedores;
 
     SET NOCOUNT OFF;
-END
+	PRINT 'Importacion de los datos de Proveedores finalizada correctamente.';
+END TRY
+BEGIN CATCH
+        DECLARE @ErrorNumber INT = ERROR_NUMBER();
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+
+        -- Caso 1: archivo no encontrado
+        IF @ErrorNumber = 4860
+        BEGIN
+            RAISERROR
+            (
+                'ERROR: El archivo no existe o la ruta es incorrecta: %s',
+                16, 1, @rutaArch
+            );
+            RETURN;
+        END;
+
+        -- Caso 2: cualquier otro error del BULK INSERT
+        RAISERROR
+        (
+            'Error al intentar importar el archivo: %s',
+            16, 1, @ErrorMessage
+        )
+        RETURN
+END CATCH
 GO
 
 IF OBJECT_ID('Operaciones.sp_ImportarDatosProveedores', 'P') IS NOT NULL
@@ -652,7 +752,7 @@ GO
 CREATE OR ALTER PROCEDURE Operaciones.sp_ImportarUFInquilinos
     @RutaArchivo VARCHAR(500)
 AS
-BEGIN
+BEGIN TRY
     SET NOCOUNT ON;
 
     DROP TABLE IF EXISTS #TempUFInquilinos;
@@ -686,21 +786,8 @@ BEGIN
             FIRSTROW = 2
         );';
     EXEC sp_executesql @SQL;
-
-    -- DIAGNÓSTICO 1: Filas cargadas en la tabla temporal
-    DECLARE @CargasTemp INT = @@ROWCOUNT;
-
-    IF @CargasTemp = 0 
-    BEGIN
-        PRINT CONCAT('ERROR CRÍTICO: BULK INSERT cargó 0 filas. Verifique la ruta del archivo (', @RutaArchivo, ') y los permisos de SQL Server.');
-        DROP TABLE IF EXISTS #TempUFInquilinos;
-        RETURN;
-    END
-    ELSE
-    BEGIN
-        PRINT CONCAT('Filas cargadas en la temporal: ', @CargasTemp);
-    END
     
+	PRINT 'Iniciando importacion de los datos de Inquilinos-Propietarios-UF';
     DECLARE @FilasInsertadas INT;
     
     INSERT INTO Consorcio.UnidadFuncional (
@@ -737,9 +824,35 @@ BEGIN
    
     SET @FilasInsertadas = @@ROWCOUNT;
 
+	PRINT 'Importacion de los datos de Inquilinos-Propietarios-UF finalizada correctamente';
+
     PRINT CONCAT('Filas insertadas en UnidadFuncional: ', @FilasInsertadas);
+
     DROP TABLE #TempUFInquilinos;
-END
+END TRY
+BEGIN CATCH
+        DECLARE @ErrorNumber INT = ERROR_NUMBER();
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+
+        -- Caso 1: archivo no encontrado
+        IF @ErrorNumber = 4860
+        BEGIN
+            RAISERROR
+            (
+                'ERROR: El archivo no existe o la ruta es incorrecta: %s',
+                16, 1, @rutaArchivo
+            );
+            RETURN;
+        END;
+
+        -- Caso 2: cualquier otro error del BULK INSERT
+        RAISERROR
+        (
+            'Error al intentar importar el archivo: %s',
+            16, 1, @ErrorMessage
+        )
+        RETURN
+END CATCH
 GO
 
 IF OBJECT_ID('Operaciones.sp_ImportarUFInquilinos', 'P') IS NOT NULL
@@ -753,7 +866,7 @@ GO
 CREATE OR ALTER PROCEDURE Operaciones.sp_ImportarUFporConsorcio
     @RutaArchivo VARCHAR(500)
 AS
-BEGIN
+BEGIN TRY
     SET NOCOUNT ON;
 
     -- Validación de caracteres peligrosos
@@ -798,6 +911,7 @@ BEGIN
     
     EXEC sp_executesql @SQL;
 
+	PRINT 'Iniciando importacion de los datos de UF por Consorcio';
     -- Limpieza inicial de nulos/vacíos
     DELETE FROM #TemporalUF
     WHERE 
@@ -844,10 +958,6 @@ BEGIN
     FROM #TemporalUF AS T
     INNER JOIN Consorcio.Consorcio AS C 
         ON LTRIM(RTRIM(T.nombreConsorcio)) = C.nombre;
-    
-    DECLARE @UF_Limpias INT = @@ROWCOUNT;
-    PRINT CONCAT('Filas limpias listas para actualizar: ', @UF_Limpias);
-
     UPDATE UF
     SET 
         -- Rellena metrosCuadrados solo si es NULL
@@ -869,7 +979,9 @@ BEGIN
     WHERE UF.metrosCuadrados IS NULL 
        OR UF.porcentajeExpensas IS NULL 
        OR UF.tipo IS NULL;
-    
+
+    PRINT 'Importacion de los datos de UF por Consorcio finalizada correctamente.';
+
     DECLARE @UF_Actualizadas INT = @@ROWCOUNT;
     PRINT CONCAT('Unidades Funcionales actualizadas: ', @UF_Actualizadas);
 
@@ -877,9 +989,32 @@ BEGIN
     DROP TABLE #TemporalUF;
     DROP TABLE #UFDataLimpia;
     
-    PRINT 'Proceso de relleno de campos de Unidades Funcionales finalizado.';
+    
 
-END
+END TRY
+BEGIN CATCH
+        DECLARE @ErrorNumber INT = ERROR_NUMBER();
+        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
+
+        -- Caso 1: archivo no encontrado
+        IF @ErrorNumber = 4860
+        BEGIN
+            RAISERROR
+            (
+                'ERROR: El archivo no existe o la ruta es incorrecta: %s',
+                16, 1, @rutaArchivo
+            );
+            RETURN;
+        END;
+
+        -- Caso 2: cualquier otro error del BULK INSERT
+        RAISERROR
+        (
+            'Error al intentar importar el archivo: %s',
+            16, 1, @ErrorMessage
+        )
+        RETURN
+END CATCH
 GO
 
 IF OBJECT_ID('Operaciones.sp_ImportarUFporConsorcio', 'P') IS NOT NULL
