@@ -23,7 +23,7 @@ realizaria de manera semanal fuera del horario laboral durante la noche al final
 Cada dia, durante las mañanas previas al horario laboral se realizaria un Backup diferencial, una
 copia de los objetos de la base en su estado actual y para complementarlo y reducir la perdida de 
 informacion, cada hora se generara una copia del log de transaciones mientras esta en uso, reduciendo
- asi la perdida de datos(RPO) solo una hora previa al ultimo backup realizado en el dia.
+asi la perdida de datos(RPO) solo una hora previa al ultimo backup realizado en el dia.
 
 Se recomienda guardar los Backup FULL realizados en la semana en distintos dispositivos, incluyendo 
 la nube y algun dispositivo de almacenamiento externo al hardware en funcionamiento, tal cual recomienda la estrategia 3-2-1
