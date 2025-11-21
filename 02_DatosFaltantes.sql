@@ -596,7 +596,7 @@ GO
 -- ======================================================================================================
 
 
-CREATE OR ALTER PROCEDURE Negocio.SP_GenerarExpensasMensuales
+CREATE OR ALTER PROCEDURE Operaciones.SP_GenerarExpensasMensuales
     @ConsorcioID INT,
     @Anio INT,
     @Mes INT
@@ -818,7 +818,7 @@ END
 GO
 
 
-CREATE OR ALTER PROCEDURE Negocio.SP_EnviarMailPorExpensa
+CREATE OR ALTER PROCEDURE Operaciones.SP_EnviarMailPorExpensa
     @expensaId INT
 AS
 BEGIN
@@ -1142,7 +1142,7 @@ BEGIN
 
         IF @mail = 1
         BEGIN
-        	EXEC Negocio.SP_EnviarMailPorExpensa @expensaId
+        	EXEC Operaciones.SP_EnviarMailPorExpensa @expensaId
    		END
 
         COMMIT TRANSACTION;
@@ -1167,7 +1167,7 @@ GO
 
 -- SP para automatizar la generación de expensas mensuales en lote
 -- Genera las expensas, aplica los pagos y actualiza los detalles de expensa (en ese orden)
-CREATE OR ALTER PROCEDURE Negocio.SP_GenerarLoteDeExpensas
+CREATE OR ALTER PROCEDURE Operaciones.SP_GenerarLoteDeExpensas
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1204,7 +1204,7 @@ BEGIN
                   ', Período: ' + CAST(@AnioFijo AS VARCHAR) + '-' + FORMAT(@MesActual, '00');
 
             -- Ejecuta el SP principal con los valores actuales del loop
-            EXEC Negocio.SP_GenerarExpensasMensuales 
+            EXEC Operaciones.SP_GenerarExpensasMensuales 
                 @ConsorcioID = @ConsorcioActual, 
                 @Anio = @AnioFijo, 
                 @Mes = @MesActual;

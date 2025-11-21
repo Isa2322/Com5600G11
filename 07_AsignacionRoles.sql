@@ -23,7 +23,7 @@ USE [master]
 GO
 
 -------------------------------------------------------
------------------- 0. BORRAR DE LOGINS --------------
+------------------  BORRAR DE LOGINS --------------
 -------------------------------------------------------
 /*
 -------------------------------------------------------
@@ -98,7 +98,7 @@ PRINT '=== LIMPIEZA COMPLETADA ==='
 */
 
 -------------------------------------------------------
------------------- 1. CREACIÓN DE LOGINS --------------
+------------------ CREACIÓN DE LOGINS --------------
 -------------------------------------------------------
 
 IF SUSER_ID('administrativoGeneral') IS NULL
@@ -134,13 +134,13 @@ END
 GO
 
 -------------------------------------------------------
---- 2. CAMBIO DE CONTEXTO A LA BASE DE DATOS ----------
+--- CAMBIO DE CONTEXTO A LA BASE DE DATOS ----------
 -------------------------------------------------------
 USE [Com5600G11]
 GO
 
 -------------------------------------------------------
------------------ 3. CREACIÓN DE USUARIOS -------------
+----------------- CREACIÓN DE USUARIOS -------------
 -------------------------------------------------------
 
 IF DATABASE_PRINCIPAL_ID('administrativoGeneral') IS NULL
@@ -160,7 +160,7 @@ IF DATABASE_PRINCIPAL_ID('sistema') IS NULL
 GO
 
 -------------------------------------------------------
------------------- 4. CREACIÓN DE ROLES ---------------
+------------------ CREACIÓN DE ROLES ---------------
 -------------------------------------------------------
 
 IF DATABASE_PRINCIPAL_ID('AdministrativosGenerales') IS NULL
@@ -180,7 +180,7 @@ IF DATABASE_PRINCIPAL_ID('Sistemas') IS NULL
 GO
 
 -------------------------------------------------------
------------- 5. ASIGNACIÓN DE MIEMBROS --------------
+------------ ASIGNACIÓN DE MIEMBROS --------------
 -------------------------------------------------------
 
 IF IS_ROLEMEMBER('AdministrativosGenerales', 'administrativoGeneral') = 0 
@@ -205,43 +205,179 @@ END
 GO
 
 -------------------------------------------------------
-------------- 6. ASIGNACIÓN DE PERMISOS ---------------
+------------- ASIGNACIÓN DE PERMISOS ---------------
 -------------------------------------------------------
 
--- A. Rol: Administrativo General
-IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Consorcio')
-    GRANT SELECT, UPDATE ON SCHEMA::Consorcio TO AdministrativosGenerales;
+PRINT '>>> INICIANDO ASIGNACIÓN CONDICIONAL DE PERMISOS...'
 
-IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Negocio')
+
+-------------------------------------------------------
+------------ Lectura sobre esquemas -------------------
+-------------------------------------------------------
+
+-- esquema Consorcio --
+
+--AdminGenerales 
+IF NOT EXISTS (
+    SELECT 1 FROM sys.database_permissions 
+    WHERE major_id = SCHEMA_ID('Consorcio') AND class_desc = 'SCHEMA' 
+      AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') 
+      AND permission_name = 'SELECT'
+)
+BEGIN
+    GRANT SELECT ON SCHEMA::Consorcio TO AdministrativosGenerales;
+END
+
+--AdminOperativos
+IF NOT EXISTS (
+    SELECT 1 FROM sys.database_permissions 
+    WHERE major_id = SCHEMA_ID('Consorcio') AND class_desc = 'SCHEMA' 
+      AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') 
+      AND permission_name = 'SELECT'
+)
+BEGIN
+    GRANT SELECT ON SCHEMA::Consorcio TO AdministrativosOperativos;
+END
+
+-- esquema Negocio --
+
+--AdministrativosGenerales
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = SCHEMA_ID('Negocio') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'SELECT')
     GRANT SELECT ON SCHEMA::Negocio TO AdministrativosGenerales;
 
-IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Reporte')
+--AdministrativosOperativos
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = SCHEMA_ID('Negocio') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'SELECT')
+    GRANT SELECT ON SCHEMA::Negocio TO AdministrativosOperativos;
+
+--AdministrativosBancarios
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = SCHEMA_ID('Negocio') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'SELECT')
+    GRANT SELECT ON SCHEMA::Negocio TO AdministrativosBancarios;
+
+
+--esquema Pago --
+
+-- AdministrativosBancarios
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = SCHEMA_ID('Pago') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'SELECT')
+    GRANT SELECT ON SCHEMA::Pago TO AdministrativosBancarios;
+
+-------------------------------------------------------
+------------ ejecucion --------------------------------
+-------------------------------------------------------
+
+-- AdministrativosGenerales
+
+-- faltantes
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_CargaTiposRol') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_CargaTiposRol TO AdministrativosGenerales;
+
+
+-- Importación
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarDatosConsorcios') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarDatosConsorcios TO AdministrativosGenerales;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarInquilinosPropietarios') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarInquilinosPropietarios TO AdministrativosGenerales;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarUFInquilinos') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarUFInquilinos TO AdministrativosGenerales;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarUFporConsorcio') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarUFporConsorcio TO AdministrativosGenerales;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_RellenarCocheras') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_RellenarCocheras TO AdministrativosGenerales;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_RellenarBauleras') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_RellenarBauleras TO AdministrativosGenerales;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.SP_generadorCuentaBancaria') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.SP_generadorCuentaBancaria TO AdministrativosGenerales;
+
+-- Reportes
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = SCHEMA_ID('Reporte') AND class_desc = 'SCHEMA' AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosGenerales') AND permission_name = 'EXECUTE')
     GRANT EXECUTE ON SCHEMA::Reporte TO AdministrativosGenerales;
-GO
 
--- B. Rol: Administrativo Bancario
-IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Pago')
-    GRANT SELECT, INSERT, UPDATE ON SCHEMA::Pago TO AdministrativosBancarios;
 
-IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Reporte')
+-- AdministrativosOperativos--
+
+-- faltantes
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_CargaTiposRol') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_CargaTiposRol TO AdministrativosOperativos;
+
+-- Importación
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarDatosConsorcios') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarDatosConsorcios TO AdministrativosOperativos;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarInquilinosPropietarios') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarInquilinosPropietarios TO AdministrativosOperativos;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarUFInquilinos') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarUFInquilinos TO AdministrativosOperativos;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarUFporConsorcio') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarUFporConsorcio TO AdministrativosOperativos;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_RellenarCocheras') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_RellenarCocheras TO AdministrativosOperativos;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_RellenarBauleras') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_RellenarBauleras TO AdministrativosOperativos;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.SP_generadorCuentaBancaria') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.SP_generadorCuentaBancaria TO AdministrativosOperativos;
+
+-- Reportes
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = SCHEMA_ID('Reporte') AND class_desc = 'SCHEMA' AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosOperativos') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON SCHEMA::Reporte TO AdministrativosOperativos;
+
+
+
+-- AdministrativosBancarios--
+
+-- Gastos y Expensas
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_CargarGastosExtraordinarios') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_CargarGastosExtraordinarios TO AdministrativosBancarios;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarGastosMensuales') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarGastosMensuales TO AdministrativosBancarios;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarDatosProveedores') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarDatosProveedores TO AdministrativosBancarios;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.CargarGastosGeneralesOrdinarios') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.CargarGastosGeneralesOrdinarios TO AdministrativosBancarios;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Negocio.SP_GenerarLoteDeExpensas') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.SP_GenerarLoteDeExpensas TO AdministrativosBancarios;
+
+-- datos de consorcio necesarios para los gastos
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarDatosConsorcios') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarDatosConsorcios TO AdministrativosBancarios;
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.SP_generadorCuentaBancaria') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.SP_generadorCuentaBancaria TO AdministrativosBancarios;
+
+-- Bancario
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarPago') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_ImportarPago TO AdministrativosBancarios;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarPago') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_CrearYcargar_FormasDePago TO AdministrativosBancarios;
+
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = OBJECT_ID('Operaciones.sp_ImportarPago') AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
+    GRANT EXECUTE ON OBJECT::Operaciones.sp_AplicarPagosACuentas TO AdministrativosBancarios;
+
+-- Reportes
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = SCHEMA_ID('Reporte') AND class_desc = 'SCHEMA' AND grantee_principal_id = DATABASE_PRINCIPAL_ID('AdministrativosBancarios') AND permission_name = 'EXECUTE')
     GRANT EXECUTE ON SCHEMA::Reporte TO AdministrativosBancarios;
 
-IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Operaciones')
-    GRANT EXECUTE ON SCHEMA::Operaciones To AdministrativosBancarios;
-GO
 
--- C. Rol: Administrativo Operativo
-IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Consorcio')
-    GRANT SELECT, UPDATE ON SCHEMA::Consorcio TO AdministrativosOperativos;
 
-IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Reporte')
-    GRANT EXECUTE ON SCHEMA::Reporte TO AdministrativosOperativos;
-GO
+-- Sistemas ---
 
--- D. Rol: Sistemas
-IF EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'Reporte')
+IF NOT EXISTS (SELECT 1 FROM sys.database_permissions WHERE major_id = SCHEMA_ID('Reporte') AND class_desc = 'SCHEMA' AND grantee_principal_id = DATABASE_PRINCIPAL_ID('Sistemas') AND permission_name = 'EXECUTE')
     GRANT EXECUTE ON SCHEMA::Reporte TO Sistemas;
 GO
+
 
 PRINT 'Script de Seguridad ejecutado correctamente.'
 
