@@ -1240,6 +1240,10 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID('Reporte.sp_Reporte1_FlujoSemanal', 'P') IS NOT NULL
+    PRINT 'SP Para el reporte 1: Reporte.sp_Reporte1_FlujoSemanal creado con exito'
+go
+
 /*
     REPORTE 2:
     Presente el total de recaudación por mes y departamento en formato de tabla cruzada.  
