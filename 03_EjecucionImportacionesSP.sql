@@ -33,22 +33,22 @@ GO
 EXEC Operaciones.sp_CrearYcargar_FormasDePago
 GO
 
-EXEC Operaciones.sp_ImportarPago @rutaArchivo  = 'C:\Github\Repos\Bases-de-datos-Aplicadas\consorcios\pagos_consorcios.csv';
+EXEC Operaciones.sp_ImportarPago @rutaArchivo  = 'C:\Users\Milagros quispe\Documents\GitHub\Bases-de-datos-Aplicadas\consorcios\pagos_consorcios.csv';
 GO
 
-EXEC Operaciones.sp_ImportarDatosConsorcios @rutaArch= 'C:\Github\Repos\Bases-de-datos-Aplicadas\consorcios\datos varios - Consorcios.csv';
+EXEC Operaciones.sp_ImportarDatosConsorcios @rutaArch= 'C:\Users\Milagros quispe\Documents\GitHub\Bases-de-datos-Aplicadas\consorcios\datos varios - Consorcios.csv';
 GO
 
-EXEC Operaciones.sp_ImportarInquilinosPropietarios @RutaArchivo = 'C:\Github\Repos\Bases-de-datos-Aplicadas\consorcios\Inquilino-propietarios-datos.csv';
+EXEC Operaciones.sp_ImportarInquilinosPropietarios @RutaArchivo = 'C:\Users\Milagros quispe\Documents\GitHub\Bases-de-datos-Aplicadas\consorcios\Inquilino-propietarios-datos.csv';
 GO
 
-EXEC Operaciones.sp_ImportarUFInquilinos @RutaArchivo = 'C:\Github\Repos\Bases-de-datos-Aplicadas\consorcios\Inquilino-propietarios-UF.csv';
+EXEC Operaciones.sp_ImportarUFInquilinos @RutaArchivo = 'C:\Users\Milagros quispe\Documents\GitHub\Bases-de-datos-Aplicadas\consorcios\Inquilino-propietarios-UF.csv';
 GO
 
 EXEC Operaciones.SP_generadorCuentaBancaria;
 GO
 
-EXEC Operaciones.sp_ImportarUFporConsorcio @RutaArchivo = 'C:\Github\Repos\Bases-de-datos-Aplicadas\consorcios\UF por consorcio.txt';
+EXEC Operaciones.sp_ImportarUFporConsorcio @RutaArchivo = 'C:\Users\Milagros quispe\Documents\GitHub\Bases-de-datos-Aplicadas\consorcios\UF por consorcio.txt';
 GO
 
 EXEC Operaciones.sp_CargarGastosExtraordinarios;
@@ -62,7 +62,7 @@ BEGIN TRY
     --============================================
 
 	PRINT 'Ejecutando sp_ImportarGastosMensuales...'
-    EXEC Operaciones.sp_ImportarGastosMensuales @ruta = 'C:\Github\Repos\Bases-de-datos-Aplicadas\consorcios\Servicios.Servicios.json';
+    EXEC Operaciones.sp_ImportarGastosMensuales @ruta = 'C:\Users\Milagros quispe\Documents\GitHub\Bases-de-datos-Aplicadas\consorcios\Servicios.Servicios.json';
     PRINT 'Gastos Mensuales importados correctamente.';
 
     --============================================
@@ -70,7 +70,7 @@ BEGIN TRY
     --============================================
 
 	PRINT 'Ejecutando sp_ImportarDatosProveedores...';
-    EXEC Operaciones.sp_ImportarDatosProveedores @rutaArch = 'C:\Github\Repos\Bases-de-datos-Aplicadas\consorcios\datos varios - Proveedores.csv';
+    EXEC Operaciones.sp_ImportarDatosProveedores @rutaArch = 'C:\Users\Milagros quispe\Documents\GitHub\Bases-de-datos-Aplicadas\consorcios\datos varios - Proveedores.csv';
     PRINT 'Proveedores importados correctamente.';
 
     --============================================
@@ -114,10 +114,12 @@ SELECT * FROM Consorcio.Consorcio
 SELECT * FROM Consorcio.UnidadFuncional
 SELECT * FROM Consorcio.Cochera
 SELECT * FROM Consorcio.Baulera
+
 SELECT * FROM Negocio.DetalleExpensa
 SELECT * FROM Negocio.Expensa
 SELECT * FROM Negocio.GastoExtraordinario
 SELECT * FROM Negocio.GastoOrdinario
+
 SELECT * FROM Pago.FormaDePago
 SELECT * FROM Pago.Pago
 SELECT * FROM Pago.FormaDePago
