@@ -1,0 +1,48 @@
+﻿Seccion;IdConsorcio;NombreConsorcio;Anio;Mes;Campo1;Campo2;Campo3;Campo4;Monto
+1-Encabezado;1;Azcuenaga;2025;5;Belgrano 3344;0000000000000865308303;1281.00;NULL;NULL
+2-FormaPago;1;Azcuenaga;2025;5;Transferencia bancaria a la cuenta del consorcio;2025-05-10;2025-05-15;NULL;NULL
+3-Deudores;1;Azcuenaga;2025;5;PATRICIA A SANDOVAL;PB  -A;1;NULL;144605.46
+3-Deudores;1;Azcuenaga;2025;5;Mariela NANIN;PB  -B;2;NULL;144355.78
+3-Deudores;1;Azcuenaga;2025;5;OSNAGHI ANDREA LORENA;PB  -C;3;NULL;144130.38
+3-Deudores;1;Azcuenaga;2025;5;ALEJANDRA PAULETTE;PB  -D;4;NULL;144130.10
+3-Deudores;1;Azcuenaga;2025;5;LUCIANA VANESA FERNANDEZ LOPEZ;PB  -E;5;NULL;144457.02
+3-Deudores;1;Azcuenaga;2025;5;JAIME DANIEL MORENO;1   -A;6;NULL;75032.89
+3-Deudores;1;Azcuenaga;2025;5;Santiago Latrecchiana;1   -B;7;NULL;74742.92
+3-Deudores;1;Azcuenaga;2025;5;PAMELA GABRIELA MINO;1   -C;8;NULL;75010.59
+3-Deudores;1;Azcuenaga;2025;5;SILVIO IVAN MENES;1   -D;9;NULL;88135.06
+3-Deudores;1;Azcuenaga;2025;5;ALEJANDRA GABRIELA SALEMME;1   -E;10;NULL;88213.80
+3-Deudores;1;Azcuenaga;2025;5;SAMANTA L GARCIA;2   -A;11;NULL;84824.38
+3-Deudores;1;Azcuenaga;2025;5;FLAVIA MIRIAM GIRA;2   -B;12;NULL;84867.41
+3-Deudores;1;Azcuenaga;2025;5;PAMELA E CARABAJAL GONZALEZ;2   -C;13;NULL;84687.71
+3-Deudores;1;Azcuenaga;2025;5;GRACIELA JUDITH SANCHEZ;2   -D;14;NULL;84826.19
+3-Deudores;1;Azcuenaga;2025;5;SILVIA VIVIANA CARNERO;2   -E;15;NULL;84772.07
+3-Deudores;1;Azcuenaga;2025;5;ZURITA GLORIA R SANCHEZ;3   -A;16;NULL;131211.75
+3-Deudores;1;Azcuenaga;2025;5;GLADYS BEATRIZ PIZARRO;3   -B;17;NULL;131216.46
+3-Deudores;1;Azcuenaga;2025;5;CARLA ELIANA BRAVO;3   -C;18;NULL;131163.59
+3-Deudores;1;Azcuenaga;2025;5;EMILSE VIRGINIA ACHEGA;3   -D;19;NULL;131032.80
+3-Deudores;1;Azcuenaga;2025;5;ARACELLI MARIA A MERCADO;3   -E;20;NULL;131216.90
+3-Deudores;1;Azcuenaga;2025;5;MALENA VIVIANA ARIAS;4   -A;21;NULL;127765.79
+3-Deudores;1;Azcuenaga;2025;5;ELIANA SOLEDAD DIAZ;4   -B;22;NULL;144477.35
+3-Deudores;1;Azcuenaga;2025;5;MARIA EVA FERREYRA;4   -C;23;NULL;134477.83
+3-Deudores;1;Azcuenaga;2025;5;Mar¡a Lorena Ojeda;4   -D;24;NULL;134651.09
+3-Deudores;1;Azcuenaga;2025;5;VIRGINIA SOLEDAD RODRIGUEZ;4   -E;25;NULL;144463.76
+3-Deudores;1;Azcuenaga;2025;5;MARIANA SABRINA PEREZ;5   -A;26;NULL;74910.69
+3-Deudores;1;Azcuenaga;2025;5;PATRICIA NATALIA TRINIDAD;5   -B;27;NULL;74944.27
+3-Deudores;1;Azcuenaga;2025;5;MARIA ESTER ACU¥A;5   -C;28;NULL;74848.32
+3-Deudores;1;Azcuenaga;2025;5;JESICA PAOLA FERREYRA;5   -D;29;NULL;74890.94
+3-Deudores;1;Azcuenaga;2025;5;SILVINA FERNANDA YEGROS;5   -E;30;NULL;74693.86
+4-GastosOrdinarios;1;Azcuenaga;2025;5;ADMINISTRACION;FLAVIO HERNAN DIAZ;0012505009;Honorarios;200.00
+4-GastosOrdinarios;1;Azcuenaga;2025;5;BANCARIOS;BANCO CREDICOOP;0012505010;Gastos bancario;22.65
+4-GastosOrdinarios;1;Azcuenaga;2025;5;GASTOS GENERALES;Fumigadora La Rápida;0012505011;Reposición de lámparas LED;9613.50
+4-GastosOrdinarios;1;Azcuenaga;2025;5;LIMPIEZA;Serv. Limpieza;0012505012;Limptech;120.00
+4-GastosOrdinarios;1;Azcuenaga;2025;5;SEGUROS;FEDERACIÓN PATRONAL SEGUROS;0012505013;Integral de consorcio;34.68
+4-GastosOrdinarios;1;Azcuenaga;2025;5;SERVICIOS PUBLICOS;AYSA;0012505014;Cuenta 195329;496837.32
+4-GastosOrdinarios;1;Azcuenaga;2025;5;SERVICIOS PUBLICOS;AYSA;0012505015;Cuenta 195329;547445.22
+5-GastosExtraordinarios;1;Azcuenaga;2025;5;Renovación del hall de entrada;SafeCam Systems;2131548730;NULL;382580.00
+5-GastosExtraordinarios;1;Azcuenaga;2025;5;Cambio de portero eléctrico;Impermeables S.A.;1558641539;Cuota 3;438609.80
+6-EstadoFinanciero;1;Azcuenaga;2025;5;SaldoAnterior;NULL;NULL;NULL;-1330275.74
+6-EstadoFinanciero;1;Azcuenaga;2025;5;IngresosEnTermino;NULL;NULL;NULL;19610.56
+6-EstadoFinanciero;1;Azcuenaga;2025;5;IngresosAdeudados;NULL;NULL;NULL;7613.29
+6-EstadoFinanciero;1;Azcuenaga;2025;5;IngresosAdelantados;NULL;NULL;NULL;0.00
+6-EstadoFinanciero;1;Azcuenaga;2025;5;Egresos;NULL;NULL;NULL;1875463.17
+6-EstadoFinanciero;1;Azcuenaga;2025;5;SaldoCierre;NULL;NULL;NULL;-3186128.35
